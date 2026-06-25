@@ -1,0 +1,6 @@
+PyQt6
+SQLAlchemy
+alembic
+routeros-api
+python-dotenv
+bcrypt
