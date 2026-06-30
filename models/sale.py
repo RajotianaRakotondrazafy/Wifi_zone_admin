@@ -1,5 +1,3 @@
-"""Modèle représentant une transaction de vente d'un ticket WiFi."""
-
 from dataclasses import dataclass
 from datetime import datetime
 from typing import Optional
@@ -7,8 +5,6 @@ from typing import Optional
 
 @dataclass
 class Sale:
-    """Enregistrement d'une vente de ticket réalisée par un caissier."""
-
     # Clé étrangère vers le ticket vendu
     ticket_id: int
     # Clé étrangère vers le caissier ayant effectué la vente

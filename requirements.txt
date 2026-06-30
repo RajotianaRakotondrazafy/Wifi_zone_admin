@@ -4,3 +4,4 @@ alembic
 routeros-api
 python-dotenv
 bcrypt
+qtawesome

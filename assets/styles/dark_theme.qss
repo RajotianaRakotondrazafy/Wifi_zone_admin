@@ -1,0 +1,294 @@
+QWidget {
+    background-color: #1a1d29;
+    color: #f1f1f1;
+    font-family: "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+    font-size: 14px;
+}
+
+/* ---------------- Carte centrale du login ---------------- */
+#cardLogin {
+    background-color: #232631;
+    border-radius: 16px;
+}
+
+#iconeWifi {
+    font-size: 40px;
+    qproperty-alignment: AlignCenter;
+}
+
+#titreApp {
+    font-size: 20px;
+    font-weight: bold;
+    color: #f1f1f1;
+    qproperty-alignment: AlignCenter;
+}
+
+#sousTitre {
+    font-size: 13px;
+    color: #8b8d98;
+    qproperty-alignment: AlignCenter;
+}
+
+/* ---------------- Champs de saisie ---------------- */
+QLineEdit {
+    background-color: #1a1d29;
+    border: 1px solid #2f3340;
+    border-radius: 8px;
+    padding: 10px 12px;
+    color: #f1f1f1;
+    selection-background-color: #5b6ee8;
+}
+
+QLineEdit:focus {
+    border: 1px solid #5b6ee8;
+}
+
+QLineEdit::placeholder {
+    color: #5c5f6e;
+}
+
+/* ---------------- Bouton de connexion ---------------- */
+QPushButton#boutonConnexion {
+    background-color: #5b6ee8;
+    color: #ffffff;
+    border: none;
+    border-radius: 8px;
+    padding: 12px;
+    font-weight: bold;
+}
+
+QPushButton#boutonConnexion:hover {
+    background-color: #6d7ded;
+}
+
+QPushButton#boutonConnexion:pressed {
+    background-color: #4856c4;
+}
+
+QPushButton#boutonConnexion:disabled {
+    background-color: #3a3d4d;
+    color: #8b8d98;
+}
+
+/* ---------------- Bouton afficher/masquer mot de passe ---------------- */
+QPushButton#boutonToggleMdp {
+    background-color: transparent;
+    border: none;
+    color: #8b8d98;
+    padding: 4px;
+}
+
+QPushButton#boutonToggleMdp:hover {
+    color: #f1f1f1;
+}
+
+/* ---------------- Message d'erreur ---------------- */
+QLabel#labelErreur {
+    color: #f87171;
+    font-size: 12px;
+    qproperty-alignment: AlignCenter;
+}
+
+/* ================================================================
+   TABLEAU DE BORD
+   ================================================================ */
+
+/* ---------------- Layout général ---------------- */
+QWidget#zoneContenu {
+    background-color: #1a1d29;
+}
+
+/* ---------------- Sidebar ---------------- */
+QWidget#sidebar {
+    background-color: #14161f;
+}
+
+QLabel#titreSidebar {
+    font-size: 13px;
+    font-weight: bold;
+    color: #f1f1f1;
+}
+
+QFrame#separateurSidebar {
+    background-color: #2f3340;
+    border: none;
+    max-height: 1px;
+}
+
+/* Bouton de menu — état normal */
+QWidget#conteneurBoutonMenu {
+    background-color: transparent;
+}
+
+QLabel#labelBoutonMenu {
+    color: #8b8d98;
+    font-size: 13px;
+    background-color: transparent;
+}
+
+/* Bouton de menu — état actif */
+QWidget#conteneurBoutonMenuActif {
+    background-color: #232631;
+}
+
+QLabel#labelBoutonMenuActif {
+    color: #f1f1f1;
+    font-size: 13px;
+    font-weight: bold;
+    background-color: transparent;
+}
+
+QFrame#barreAccentSidebar {
+    background-color: #5b6ee8;
+    border: none;
+    min-height: 44px;
+    max-height: 44px;
+}
+
+/* ---------------- Header dashboard ---------------- */
+QLabel#titreDashboard {
+    font-size: 22px;
+    font-weight: bold;
+    color: #f1f1f1;
+}
+
+QWidget#badgeConnexion {
+    background-color: rgba(74, 222, 128, 0.12);
+    border-radius: 12px;
+}
+
+QLabel#pastilleConnexion {
+    background-color: #4ade80;
+    border-radius: 4px;
+    min-width: 8px;
+    max-width: 8px;
+    min-height: 8px;
+    max-height: 8px;
+}
+
+QLabel#texteBadgeConnexion {
+    color: #4ade80;
+    font-size: 13px;
+    font-weight: bold;
+}
+
+/* ---------------- StatCard ---------------- */
+QFrame#statCard {
+    background-color: #232631;
+    border-radius: 12px;
+}
+
+QLabel#cercleIconeStatCard {
+    background-color: rgba(91, 110, 232, 0.15);
+    border-radius: 19px;
+}
+
+QLabel#titreStatCard {
+    color: #8b8d98;
+    font-size: 12px;
+}
+
+QLabel#valeurStatCard {
+    color: #f1f1f1;
+    font-size: 26px;
+    font-weight: bold;
+}
+
+QLabel#sousTexteStatCard {
+    color: #5c5f6e;
+    font-size: 12px;
+}
+
+/* ---------------- Card sessions actives ---------------- */
+QFrame#cardSessions {
+    background-color: #232631;
+    border-radius: 12px;
+}
+
+QLabel#titreSectionSessions {
+    color: #8b8d98;
+    font-size: 11px;
+    font-weight: bold;
+    letter-spacing: 1px;
+}
+
+QFrame#separateurSession {
+    background-color: #2f3340;
+    border: none;
+    max-height: 1px;
+}
+
+/* ---------------- SessionRow ---------------- */
+QWidget#sessionRow {
+    background-color: transparent;
+}
+
+QWidget#sessionRow:hover {
+    background-color: rgba(255, 255, 255, 0.03);
+}
+
+QLabel#nomSessionRow {
+    color: #f1f1f1;
+    font-size: 13px;
+    font-weight: bold;
+}
+
+QLabel#detailSessionRow {
+    color: #8b8d98;
+    font-size: 12px;
+}
+
+QLabel#debitSessionRow {
+    color: #8b8d98;
+    font-size: 13px;
+    min-width: 70px;
+}
+
+QLabel#labelDeconnecte {
+    color: #5c5f6e;
+    font-size: 13px;
+}
+
+/* ---------------- Boutons d'action session ---------------- */
+QPushButton#boutonActionLimiter,
+QPushButton#boutonActionBloquer,
+QPushButton#boutonActionIdentifier,
+QPushButton#boutonActionHistorique {
+    background-color: transparent;
+    border: 1px solid #3a3d4d;
+    border-radius: 6px;
+    color: #d1d2d8;
+    font-size: 12px;
+    padding: 0px 14px;
+    min-width: 72px;
+}
+
+QPushButton#boutonActionLimiter:hover,
+QPushButton#boutonActionHistorique:hover,
+QPushButton#boutonActionIdentifier:hover {
+    border-color: #5b6ee8;
+    color: #5b6ee8;
+}
+
+QPushButton#boutonActionBloquer:hover {
+    border-color: #f87171;
+    color: #f87171;
+}
+
+/* Scrollbar discrète */
+QScrollBar:vertical {
+    background: transparent;
+    width: 6px;
+    margin: 0;
+}
+
+QScrollBar::handle:vertical {
+    background: #3a3d4d;
+    border-radius: 3px;
+    min-height: 24px;
+}
+
+QScrollBar::add-line:vertical,
+QScrollBar::sub-line:vertical {
+    height: 0;
+}

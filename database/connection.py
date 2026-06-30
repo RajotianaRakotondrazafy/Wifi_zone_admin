@@ -11,20 +11,21 @@ class DatabaseConnection:
             cls._instance = super().__new__(cls)
         return cls._instance
 
-    def get_connection(self) -> sqlite3.Connection:
-        if self._connection is None:
+    @classmethod
+    def get_connection(cls) -> sqlite3.Connection:
+        if cls._connection is None:
             os.makedirs(os.path.dirname(DATABASE_PATH), exist_ok=True)
 
-            self._connection = sqlite3.connect(
+            cls._connection = sqlite3.connect(
                 DATABASE_PATH,
                 check_same_thread=False,  # thread-safe via locking applicatif
             )
 
-            self._connection.row_factory = sqlite3.Row
+            cls._connection.row_factory = sqlite3.Row
 
-            self._connection.execute("PRAGMA foreign_keys = ON")
+            cls._connection.execute("PRAGMA foreign_keys = ON")
 
-        return self._connection
+        return cls._connection
 
     def close(self) -> None:
         if self._connection is not None:
