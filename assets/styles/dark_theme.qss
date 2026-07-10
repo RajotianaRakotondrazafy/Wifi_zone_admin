@@ -5,55 +5,113 @@ QWidget {
     font-size: 14px;
 }
 
-/* ---------------- Carte centrale du login ---------------- */
-#cardLogin {
-    background-color: #232631;
-    border-radius: 16px;
+/* ================================================================
+   LOGIN
+   ================================================================ */
+
+/* --- Carte ------------------------------------------------------- */
+QFrame#cardLogin {
+    background-color: #20233a;
+    border-radius: 18px;
+    border: 1px solid #2f3340;
 }
 
-#iconeWifi {
-    font-size: 40px;
-    qproperty-alignment: AlignCenter;
+/* --- Cercle icône WiFi ------------------------------------------- */
+QLabel#cercleIconeLogin {
+    background-color: rgba(91, 110, 232, 0.14);
+    border-radius: 34px;
+    border: 1px solid rgba(91, 110, 232, 0.28);
 }
 
-#titreApp {
-    font-size: 20px;
+/* --- Titre & badges ---------------------------------------------- */
+QLabel#titreApp {
+    font-size: 24px;
     font-weight: bold;
     color: #f1f1f1;
     qproperty-alignment: AlignCenter;
 }
 
-#sousTitre {
+QLabel#badgeZoneLogin {
+    font-size: 10px;
+    font-weight: bold;
+    color: #5b6ee8;
+    background-color: rgba(91, 110, 232, 0.14);
+    border: 1px solid rgba(91, 110, 232, 0.25);
+    border-radius: 8px;
+    padding: 2px 10px;
+    qproperty-alignment: AlignCenter;
+    letter-spacing: 2px;
+}
+
+QLabel#sousTitre {
     font-size: 13px;
     color: #8b8d98;
     qproperty-alignment: AlignCenter;
 }
 
-/* ---------------- Champs de saisie ---------------- */
-QLineEdit {
-    background-color: #1a1d29;
-    border: 1px solid #2f3340;
-    border-radius: 8px;
-    padding: 10px 12px;
-    color: #f1f1f1;
-    selection-background-color: #5b6ee8;
+/* --- Séparateur -------------------------------------------------- */
+QFrame#separateurLogin {
+    background-color: #2f3340;
+    border: none;
+    max-height: 1px;
 }
 
-QLineEdit:focus {
+/* --- Labels de champ --------------------------------------------- */
+QLabel#labelChamp {
+    color: #8b8d98;
+    font-size: 12px;
+    font-weight: bold;
+}
+
+/* --- Conteneur icône + input (bordure unifiée) ------------------- */
+QFrame#conteneurChamp {
+    background-color: #1a1d29;
+    border: 1px solid #2f3340;
+    border-radius: 9px;
+}
+
+QFrame#conteneurChamp[actif="true"] {
     border: 1px solid #5b6ee8;
 }
 
-QLineEdit::placeholder {
+/* --- Input à l'intérieur du conteneur ---------------------------- */
+QLineEdit#champAvecIcone {
+    background-color: transparent;
+    border: none;
+    border-radius: 0;
+    padding: 0 4px 0 0;
+    color: #f1f1f1;
+    selection-background-color: #5b6ee8;
+    font-size: 14px;
+}
+
+QLineEdit#champAvecIcone::placeholder {
     color: #5c5f6e;
 }
 
-/* ---------------- Bouton de connexion ---------------- */
+/* --- Icône décorative gauche ------------------------------------- */
+QLabel#iconeChamp {
+    background-color: transparent;
+}
+
+/* --- Bouton toggle mot de passe ---------------------------------- */
+QPushButton#boutonToggleMdp {
+    background-color: transparent;
+    border: none;
+}
+
+QPushButton#boutonToggleMdp:hover {
+    background-color: rgba(255, 255, 255, 0.05);
+    border-radius: 6px;
+}
+
+/* --- Bouton connexion -------------------------------------------- */
 QPushButton#boutonConnexion {
     background-color: #5b6ee8;
     color: #ffffff;
     border: none;
-    border-radius: 8px;
-    padding: 12px;
+    border-radius: 9px;
+    font-size: 15px;
     font-weight: bold;
 }
 
@@ -67,26 +125,24 @@ QPushButton#boutonConnexion:pressed {
 
 QPushButton#boutonConnexion:disabled {
     background-color: #3a3d4d;
-    color: #8b8d98;
+    color: #5c5f6e;
 }
 
-/* ---------------- Bouton afficher/masquer mot de passe ---------------- */
-QPushButton#boutonToggleMdp {
-    background-color: transparent;
-    border: none;
-    color: #8b8d98;
-    padding: 4px;
-}
-
-QPushButton#boutonToggleMdp:hover {
-    color: #f1f1f1;
-}
-
-/* ---------------- Message d'erreur ---------------- */
+/* --- Message d'erreur -------------------------------------------- */
 QLabel#labelErreur {
     color: #f87171;
     font-size: 12px;
     qproperty-alignment: AlignCenter;
+    background-color: rgba(248, 113, 113, 0.08);
+    border: 1px solid rgba(248, 113, 113, 0.2);
+    border-radius: 6px;
+    padding: 6px;
+}
+
+/* --- Pied de page ------------------------------------------------ */
+QLabel#footerLogin {
+    color: #3a3d4d;
+    font-size: 11px;
 }
 
 /* ================================================================
@@ -291,4 +347,385 @@ QScrollBar::handle:vertical {
 QScrollBar::add-line:vertical,
 QScrollBar::sub-line:vertical {
     height: 0;
+}
+
+/* ================================================================
+   ÉLÉMENTS COMMUNS AUX PAGES
+   ================================================================ */
+
+/* Bouton d'action principal en haut de page */
+QPushButton#boutonActionPage {
+    background-color: #5b6ee8;
+    color: #ffffff;
+    border: none;
+    border-radius: 8px;
+    padding: 0 18px;
+    font-size: 13px;
+    font-weight: bold;
+}
+QPushButton#boutonActionPage:hover   { background-color: #6d7ded; }
+QPushButton#boutonActionPage:pressed { background-color: #4856c4; }
+
+/* Barre de recherche */
+QLineEdit#barreRecherche {
+    background-color: #232631;
+    border: 1px solid #2f3340;
+    border-radius: 8px;
+    padding: 0 12px;
+    color: #f1f1f1;
+    font-size: 13px;
+}
+QLineEdit#barreRecherche:focus { border-color: #5b6ee8; }
+QLineEdit#barreRecherche::placeholder { color: #5c5f6e; }
+
+/* ── Badges ──────────────────────────────────────────────────────── */
+
+QLabel#badgeAdmin {
+    background-color: rgba(91, 110, 232, 0.15);
+    color: #5b6ee8;
+    border: 1px solid rgba(91, 110, 232, 0.3);
+    border-radius: 5px;
+    font-size: 11px;
+    font-weight: bold;
+}
+
+QLabel#badgeCaissier {
+    background-color: rgba(94, 234, 212, 0.12);
+    color: #5eead4;
+    border: 1px solid rgba(94, 234, 212, 0.25);
+    border-radius: 5px;
+    font-size: 11px;
+    font-weight: bold;
+}
+
+QLabel#badgeActif {
+    background-color: rgba(74, 222, 128, 0.12);
+    color: #4ade80;
+    border: 1px solid rgba(74, 222, 128, 0.25);
+    border-radius: 5px;
+    font-size: 11px;
+    font-weight: bold;
+}
+
+QLabel#badgeInactif {
+    background-color: rgba(92, 95, 110, 0.18);
+    color: #8b8d98;
+    border: 1px solid rgba(92, 95, 110, 0.3);
+    border-radius: 5px;
+    font-size: 11px;
+}
+
+QLabel#badgeNeutre {
+    background-color: rgba(91, 110, 232, 0.10);
+    color: #8b8d98;
+    border: 1px solid #2f3340;
+    border-radius: 5px;
+    font-size: 11px;
+}
+
+QLabel#badgeBlocage {
+    background-color: rgba(248, 113, 113, 0.12);
+    color: #f87171;
+    border: 1px solid rgba(248, 113, 113, 0.25);
+    border-radius: 5px;
+    font-size: 11px;
+    font-weight: bold;
+}
+
+/* ================================================================
+   PAGE UTILISATEURS
+   ================================================================ */
+
+QWidget#ligneUtilisateur { background-color: transparent; }
+QWidget#ligneUtilisateur:hover { background-color: rgba(255, 255, 255, 0.03); }
+
+QLabel#nomUtilisateur {
+    color: #f1f1f1;
+    font-size: 13px;
+    font-weight: bold;
+}
+
+QLabel#loginUtilisateur {
+    color: #8b8d98;
+    font-size: 12px;
+}
+
+/* ================================================================
+   PAGE ZONES WIFI
+   ================================================================ */
+
+QFrame#zoneCard {
+    background-color: #232631;
+    border-radius: 12px;
+    border: 1px solid #2f3340;
+}
+
+QLabel#cercleIconeZoneActif {
+    background-color: rgba(74, 222, 128, 0.12);
+    border-radius: 20px;
+    border: 1px solid rgba(74, 222, 128, 0.25);
+}
+
+QLabel#cercleIconeZoneInactif {
+    background-color: rgba(92, 95, 110, 0.18);
+    border-radius: 20px;
+    border: 1px solid rgba(92, 95, 110, 0.3);
+}
+
+QLabel#nomZone {
+    color: #f1f1f1;
+    font-size: 14px;
+    font-weight: bold;
+}
+
+QLabel#descriptionZone { color: #8b8d98; font-size: 12px; }
+
+QLabel#ipZone {
+    color: #5b6ee8;
+    font-size: 12px;
+    font-weight: bold;
+}
+
+/* ================================================================
+   PAGE STATISTIQUES
+   ================================================================ */
+
+QProgressBar#barreActivite {
+    background-color: #2f3340;
+    border: none;
+    border-radius: 5px;
+}
+QProgressBar#barreActivite::chunk {
+    background-color: #5b6ee8;
+    border-radius: 5px;
+}
+
+QLabel#labelHeure {
+    color: #5c5f6e;
+    font-size: 11px;
+}
+
+QLabel#labelValeurBarre {
+    color: #8b8d98;
+    font-size: 11px;
+}
+
+/* ================================================================
+   PAGE BLOCAGES
+   ================================================================ */
+
+QWidget#ligneBlocage { background-color: transparent; }
+QWidget#ligneBlocage:hover { background-color: rgba(255, 255, 255, 0.03); }
+
+QLabel#macBlocage {
+    color: #f87171;
+    font-size: 12px;
+    font-family: "Consolas", "Courier New", monospace;
+}
+
+QLabel#raisonBlocage { color: #8b8d98; font-size: 12px; }
+QLabel#dateBlocage   { color: #5c5f6e; font-size: 11px; }
+
+/* ================================================================
+   PAGE PARAMÈTRES
+   ================================================================ */
+
+QFrame#sectionParametres {
+    background-color: #232631;
+    border-radius: 12px;
+    border: 1px solid #2f3340;
+}
+
+QLabel#titreSectionParametres {
+    color: #8b8d98;
+    font-size: 11px;
+    font-weight: bold;
+    letter-spacing: 1px;
+}
+
+QLabel#labelParametre {
+    color: #8b8d98;
+    font-size: 12px;
+}
+
+QPushButton#boutonSauvegarder {
+    background-color: #5b6ee8;
+    color: #ffffff;
+    border: none;
+    border-radius: 9px;
+    padding: 0 32px;
+    font-size: 14px;
+    font-weight: bold;
+}
+QPushButton#boutonSauvegarder:hover   { background-color: #6d7ded; }
+QPushButton#boutonSauvegarder:pressed { background-color: #4856c4; }
+
+QComboBox#comboParametres {
+    background-color: #1a1d29;
+    border: 1px solid #2f3340;
+    border-radius: 8px;
+    padding: 0 12px;
+    color: #f1f1f1;
+    font-size: 13px;
+}
+QComboBox#comboParametres:focus { border-color: #5b6ee8; }
+QComboBox#comboParametres::drop-down { border: none; width: 24px; }
+QComboBox#comboParametres QAbstractItemView {
+    background-color: #232631;
+    border: 1px solid #2f3340;
+    color: #f1f1f1;
+    selection-background-color: rgba(91, 110, 232, 0.25);
+}
+
+/* ================================================================
+   PAGE VENTES
+   ================================================================ */
+
+/* Bouton principal "Vendre un ticket" */
+QPushButton#boutonVendre {
+    background-color: #5b6ee8;
+    color: #ffffff;
+    border: none;
+    border-radius: 8px;
+    padding: 0 20px;
+    font-size: 14px;
+    font-weight: bold;
+}
+QPushButton#boutonVendre:hover   { background-color: #6d7ded; }
+QPushButton#boutonVendre:pressed { background-color: #4856c4; }
+QPushButton#boutonVendre:disabled {
+    background-color: #3a3d4d;
+    color: #5c5f6e;
+}
+
+/* Ligne de l'historique des ventes */
+QWidget#ligneVente { background-color: transparent; }
+QWidget#ligneVente:hover { background-color: rgba(255, 255, 255, 0.03); }
+
+QLabel#heureVente {
+    color: #5c5f6e;
+    font-size: 12px;
+    font-weight: bold;
+}
+
+QLabel#codeVente {
+    color: #8b8d98;
+    font-size: 12px;
+    font-family: "Consolas", "Courier New", monospace;
+}
+
+QLabel#montantVente {
+    color: #4ade80;
+    font-size: 14px;
+    font-weight: bold;
+}
+
+/* ── Dialog de vente ──────────────────────────────────────────── */
+
+QDialog#dialogVente {
+    background-color: #1a1d29;
+}
+
+QWidget#pageDialogVente {
+    background-color: #1a1d29;
+}
+
+/* Carte détail du profil sélectionné */
+QFrame#carteDetailProfil {
+    background-color: rgba(91, 110, 232, 0.08);
+    border: 1px solid rgba(91, 110, 232, 0.2);
+    border-radius: 10px;
+}
+
+QLabel#valeurDetailProfil {
+    color: #f1f1f1;
+    font-size: 15px;
+    font-weight: bold;
+}
+
+/* Boutons de paiement (toggle) */
+QPushButton#boutonPaiement {
+    background-color: transparent;
+    border: 1px solid #2f3340;
+    border-radius: 8px;
+    color: #8b8d98;
+    font-size: 13px;
+    padding: 0 12px;
+}
+QPushButton#boutonPaiement:hover {
+    border-color: #5b6ee8;
+    color: #f1f1f1;
+}
+QPushButton#boutonPaiement:checked {
+    background-color: rgba(91, 110, 232, 0.18);
+    border-color: #5b6ee8;
+    color: #5b6ee8;
+    font-weight: bold;
+}
+
+/* Carte ticket généré */
+QFrame#carteTicketGenere {
+    background-color: #232631;
+    border-radius: 14px;
+    border: 1px solid #2f3340;
+}
+
+/* Grand code affiché */
+QLabel#codeTicketGenere {
+    color: #f1f1f1;
+    font-size: 36px;
+    font-weight: bold;
+    font-family: "Consolas", "Courier New", monospace;
+    letter-spacing: 4px;
+}
+
+QLabel#passwordTicketGenere {
+    color: #8b8d98;
+    font-size: 22px;
+    font-family: "Consolas", "Courier New", monospace;
+    letter-spacing: 3px;
+}
+
+/* Badge succès */
+QLabel#badgeSuccesVente {
+    background-color: rgba(74, 222, 128, 0.12);
+    color: #4ade80;
+    border: 1px solid rgba(74, 222, 128, 0.3);
+    border-radius: 10px;
+    font-size: 13px;
+    font-weight: bold;
+    padding: 6px 16px;
+}
+
+/* Récap sous le ticket */
+QLabel#recapTicket {
+    color: #8b8d98;
+    font-size: 12px;
+}
+
+/* Ligne ticket actif (avec countdown) */
+QWidget#ligneTicketActif {
+    background-color: rgba(74, 222, 128, 0.04);
+    border-left: 3px solid rgba(74, 222, 128, 0.35);
+}
+QWidget#ligneTicketActif:hover {
+    background-color: rgba(74, 222, 128, 0.07);
+}
+
+/* Code monospace dans les tickets actifs */
+QLabel#codeTicketActif {
+    color: #f1f1f1;
+    font-size: 14px;
+    font-weight: bold;
+    font-family: "Consolas", "Courier New", monospace;
+    letter-spacing: 2px;
+}
+
+/* Badge ticket expiré */
+QLabel#badgeExpire {
+    background-color: rgba(92, 95, 110, 0.18);
+    color: #5c5f6e;
+    border: 1px solid rgba(92, 95, 110, 0.3);
+    border-radius: 5px;
+    font-size: 11px;
 }

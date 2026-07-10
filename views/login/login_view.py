@@ -1,15 +1,10 @@
 import qtawesome as qta
 from pathlib import Path
 
-from PyQt6.QtCore import Qt, pyqtSignal
+from PyQt6.QtCore import Qt, QEvent, pyqtSignal, QSize
 from PyQt6.QtWidgets import (
-    QWidget,
-    QVBoxLayout,
-    QHBoxLayout,
-    QLabel,
-    QLineEdit,
-    QPushButton,
-    QFrame,
+    QWidget, QVBoxLayout, QHBoxLayout,
+    QLabel, QLineEdit, QPushButton, QFrame,
 )
 
 from controllers.auth.auth_controller import AuthController
@@ -17,6 +12,50 @@ from models.user import User
 
 
 CHEMIN_QSS = Path(__file__).resolve().parent.parent / "assets" / "styles" / "dark_theme.qss"
+
+
+class _ChampIcone(QFrame):
+    """Conteneur (icône + QLineEdit) qui simule un seul champ unifié.
+    La bordure accent s'active quand le champ interne prend le focus.
+    """
+
+    def __init__(self, icone_id: str, placeholder: str, parent=None):
+        super().__init__(parent)
+        self.setObjectName("conteneurChamp")
+
+        layout = QHBoxLayout(self)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(0)
+
+        self._icone_label = QLabel()
+        self._icone_label.setObjectName("iconeChamp")
+        self._icone_label.setFixedSize(40, 42)
+        self._icone_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self._icone_label.setPixmap(
+            qta.icon(icone_id, color="#5c5f6e").pixmap(14, 14)
+        )
+        layout.addWidget(self._icone_label)
+
+        self.champ = QLineEdit()
+        self.champ.setObjectName("champAvecIcone")
+        self.champ.setPlaceholderText(placeholder)
+        self.champ.setFixedHeight(42)
+        self.champ.installEventFilter(self)
+        layout.addWidget(self.champ)
+
+    def eventFilter(self, obj, event):
+        if obj is self.champ:
+            if event.type() == QEvent.Type.FocusIn:
+                self.setProperty("actif", True)
+                self._repolish()
+            elif event.type() == QEvent.Type.FocusOut:
+                self.setProperty("actif", False)
+                self._repolish()
+        return super().eventFilter(obj, event)
+
+    def _repolish(self):
+        self.style().unpolish(self)
+        self.style().polish(self)
 
 
 class LoginView(QWidget):
@@ -27,8 +66,8 @@ class LoginView(QWidget):
         self.auth_controller = auth_controller
         self._mot_de_passe_visible = False
 
-        self.setWindowTitle("Connexion - WiFi-Zone Manager")
-        self.setFixedSize(400, 500)
+        self.setWindowTitle("E-Konnekta — Connexion")
+        self.setFixedSize(440, 600)
 
         self._construire_interface()
         self._appliquer_theme()
@@ -37,82 +76,133 @@ class LoginView(QWidget):
     def _construire_interface(self):
         layout_general = QVBoxLayout(self)
         layout_general.setContentsMargins(0, 0, 0, 0)
+        layout_general.setSpacing(0)
 
-        # --- Carte centrale ---
+        # ── Carte centrale ──────────────────────────────────────────────
         self.carte = QFrame()
         self.carte.setObjectName("cardLogin")
-        self.carte.setFixedWidth(320)
+        self.carte.setFixedWidth(368)
 
         layout_carte = QVBoxLayout(self.carte)
-        layout_carte.setContentsMargins(32, 32, 32, 32)
-        layout_carte.setSpacing(16)
+        layout_carte.setContentsMargins(36, 36, 36, 32)
+        layout_carte.setSpacing(0)
 
-        # Icône WiFi
-        icone = QLabel("📶")
-        icone.setObjectName("iconeWifi")
-        layout_carte.addWidget(icone)
+        # ── Branding ────────────────────────────────────────────────────
+        # Cercle avec icône WiFi
+        cercle = QLabel()
+        cercle.setObjectName("cercleIconeLogin")
+        cercle.setFixedSize(68, 68)
+        cercle.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        cercle.setPixmap(qta.icon("fa5s.wifi", color="#5b6ee8").pixmap(QSize(30, 30)))
+        layout_carte.addWidget(cercle, alignment=Qt.AlignmentFlag.AlignCenter)
 
-        # Titre + sous-titre
-        titre = QLabel("WiFi-Zone Manager")
+        layout_carte.addSpacing(14)
+
+        titre = QLabel("E-Konnekta")
         titre.setObjectName("titreApp")
-        layout_carte.addWidget(titre)
+        layout_carte.addWidget(titre, alignment=Qt.AlignmentFlag.AlignCenter)
 
-        sous_titre = QLabel("Connexion à votre espace")
+        layout_carte.addSpacing(4)
+
+        badge_zone = QLabel("WiFi-Zone")
+        badge_zone.setObjectName("badgeZoneLogin")
+        layout_carte.addWidget(badge_zone, alignment=Qt.AlignmentFlag.AlignCenter)
+
+        layout_carte.addSpacing(20)
+
+        # Séparateur
+        sep = QFrame()
+        sep.setFrameShape(QFrame.Shape.HLine)
+        sep.setObjectName("separateurLogin")
+        layout_carte.addWidget(sep)
+
+        layout_carte.addSpacing(20)
+
+        sous_titre = QLabel("Connectez-vous à votre espace")
         sous_titre.setObjectName("sousTitre")
-        layout_carte.addWidget(sous_titre)
+        layout_carte.addWidget(sous_titre, alignment=Qt.AlignmentFlag.AlignCenter)
 
-        layout_carte.addSpacing(8)
+        layout_carte.addSpacing(24)
 
-        # Champ login
-        self.champ_login = QLineEdit()
-        self.champ_login.setPlaceholderText("Identifiant")
+        # ── Champ identifiant ───────────────────────────────────────────
+        layout_carte.addWidget(self._label_champ("Identifiant"))
+        layout_carte.addSpacing(5)
+
+        self._champ_login_frame = _ChampIcone("fa5s.user", "Votre identifiant")
+        self.champ_login = self._champ_login_frame.champ
         self.champ_login.returnPressed.connect(self._tenter_connexion)
-        layout_carte.addWidget(self.champ_login)
+        layout_carte.addWidget(self._champ_login_frame)
 
-        # Champ mot de passe + bouton toggle (afficher/masquer)
-        conteneur_mdp = QHBoxLayout()
-        conteneur_mdp.setSpacing(0)
+        layout_carte.addSpacing(16)
 
-        self.champ_mot_de_passe = QLineEdit()
-        self.champ_mot_de_passe.setPlaceholderText("Mot de passe")
+        # ── Champ mot de passe ──────────────────────────────────────────
+        layout_carte.addWidget(self._label_champ("Mot de passe"))
+        layout_carte.addSpacing(5)
+
+        self._champ_mdp_frame = _ChampIcone("fa5s.lock", "Votre mot de passe")
+        self.champ_mot_de_passe = self._champ_mdp_frame.champ
         self.champ_mot_de_passe.setEchoMode(QLineEdit.EchoMode.Password)
         self.champ_mot_de_passe.returnPressed.connect(self._tenter_connexion)
-        conteneur_mdp.addWidget(self.champ_mot_de_passe)
 
+        # Bouton afficher/masquer injecté à droite du champ mdp
         self.bouton_toggle_mdp = QPushButton()
-        self.bouton_toggle_mdp.setIcon(qta.icon('fa5s.eye', color='#8b8d98'))
+        self.bouton_toggle_mdp.setIcon(qta.icon("fa5s.eye", color="#5c5f6e"))
         self.bouton_toggle_mdp.setObjectName("boutonToggleMdp")
-        self.bouton_toggle_mdp.setFixedWidth(36)
+        self.bouton_toggle_mdp.setFixedSize(40, 42)
         self.bouton_toggle_mdp.setCursor(Qt.CursorShape.PointingHandCursor)
         self.bouton_toggle_mdp.clicked.connect(self._basculer_visibilite_mdp)
-        conteneur_mdp.addWidget(self.bouton_toggle_mdp)
+        self._champ_mdp_frame.layout().addWidget(self.bouton_toggle_mdp)
 
-        layout_carte.addLayout(conteneur_mdp)
+        layout_carte.addWidget(self._champ_mdp_frame)
 
-        # Message d'erreur (caché par défaut)
+        # ── Message d'erreur ────────────────────────────────────────────
         self.label_erreur = QLabel("Identifiant ou mot de passe incorrect.")
         self.label_erreur.setObjectName("labelErreur")
+        self.label_erreur.setStyleSheet(
+            "color: #f87171;"
+            "background-color: rgba(248,113,113,0.10);"
+            "border: 1px solid rgba(248,113,113,0.25);"
+            "border-radius: 6px;"
+            "padding: 6px 10px;"
+            "font-size: 12px;"
+        )
+        self.label_erreur.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.label_erreur.setVisible(False)
+        layout_carte.addSpacing(10)
         layout_carte.addWidget(self.label_erreur)
 
-        layout_carte.addSpacing(8)
+        layout_carte.addSpacing(22)
 
-        # Bouton de connexion
-        self.bouton_connexion = QPushButton("Se connecter")
+        # ── Bouton connexion ────────────────────────────────────────────
+        self.bouton_connexion = QPushButton("  Se connecter")
         self.bouton_connexion.setObjectName("boutonConnexion")
+        self.bouton_connexion.setIcon(qta.icon("fa5s.sign-in-alt", color="#ffffff"))
+        self.bouton_connexion.setIconSize(QSize(16, 16))
         self.bouton_connexion.setCursor(Qt.CursorShape.PointingHandCursor)
-        self.bouton_connexion.setFixedHeight(42)
+        self.bouton_connexion.setFixedHeight(46)
         self.bouton_connexion.clicked.connect(self._tenter_connexion)
         layout_carte.addWidget(self.bouton_connexion)
 
-        # --- Centrage de la carte dans la fenêtre ---
-        layout_general.addStretch()
-        ligne_centrale = QHBoxLayout()
-        ligne_centrale.addStretch()
-        ligne_centrale.addWidget(self.carte)
-        ligne_centrale.addStretch()
-        layout_general.addLayout(ligne_centrale)
-        layout_general.addStretch()
+        # ── Centrage de la carte ────────────────────────────────────────
+        layout_general.addStretch(2)
+        ligne = QHBoxLayout()
+        ligne.addStretch()
+        ligne.addWidget(self.carte)
+        ligne.addStretch()
+        layout_general.addLayout(ligne)
+        layout_general.addStretch(1)
+
+        # ── Pied de page ────────────────────────────────────────────────
+        footer = QLabel("© 2025 E-Konnekta · Gestion WiFi Hotspot")
+        footer.setObjectName("footerLogin")
+        layout_general.addWidget(footer, alignment=Qt.AlignmentFlag.AlignCenter)
+        layout_general.addSpacing(14)
+
+    @staticmethod
+    def _label_champ(texte: str) -> QLabel:
+        lbl = QLabel(texte)
+        lbl.setObjectName("labelChamp")
+        return lbl
 
     def _appliquer_theme(self):
         try:
@@ -131,10 +221,10 @@ class LoginView(QWidget):
         self._mot_de_passe_visible = not self._mot_de_passe_visible
         if self._mot_de_passe_visible:
             self.champ_mot_de_passe.setEchoMode(QLineEdit.EchoMode.Normal)
-            self.bouton_toggle_mdp.setIcon(qta.icon('fa5s.eye-slash', color='#8b8d98'))
+            self.bouton_toggle_mdp.setIcon(qta.icon("fa5s.eye-slash", color="#5c5f6e"))
         else:
             self.champ_mot_de_passe.setEchoMode(QLineEdit.EchoMode.Password)
-            self.bouton_toggle_mdp.setIcon(qta.icon('fa5s.eye', color='#8b8d98'))
+            self.bouton_toggle_mdp.setIcon(qta.icon("fa5s.eye", color="#5c5f6e"))
 
     def _tenter_connexion(self):
         login = self.champ_login.text().strip()

@@ -5,6 +5,7 @@ from PyQt6.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButt
 
 ITEMS_MENU = [
     ("fa5s.tachometer-alt", "Tableau de bord"),
+    ("fa5s.cash-register",  "Ventes"),
     ("fa5s.users",          "Utilisateurs"),
     ("fa5s.wifi",           "Zones WiFi"),
     ("fa5s.chart-bar",      "Statistiques"),
