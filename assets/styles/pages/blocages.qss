@@ -1,0 +1,16 @@
+/* ================================================================
+   PAGE BLOCAGES
+   ================================================================ */
+
+QWidget#ligneBlocage { background-color: transparent; }
+QWidget#ligneBlocage:hover { background-color: rgba(255, 255, 255, 0.025); }
+
+QLabel#macBlocage {
+    color: #f87171;
+    font-size: 12px;
+    font-family: "Consolas", "Courier New", monospace;
+    letter-spacing: 1px;
+}
+
+QLabel#raisonBlocage { color: #8b8d98; font-size: 12px; }
+QLabel#dateBlocage   { color: #5c5f6e; font-size: 11px; }

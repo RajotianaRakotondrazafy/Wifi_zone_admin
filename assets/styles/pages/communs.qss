@@ -1,0 +1,265 @@
+/* ================================================================
+   STYLES COMMUNS
+   ================================================================ */
+
+/* ── Scrollbar ───────────────────────────────────────────────────── */
+QScrollBar:vertical {
+    background: transparent;
+    width: 7px;
+    margin: 4px 0;
+}
+QScrollBar::handle:vertical {
+    background: #363633;
+    border-radius: 3px;
+    min-height: 28px;
+}
+QScrollBar::handle:vertical:hover { background: #4a4a47; }
+QScrollBar::add-line:vertical,
+QScrollBar::sub-line:vertical     { height: 0; }
+QScrollBar::add-page:vertical,
+QScrollBar::sub-page:vertical     { background: transparent; }
+QScrollBar:horizontal             { height: 0; }
+
+/* ── Zone contenu ────────────────────────────────────────────────── */
+QWidget#zoneContenu { background-color: #20201f; }
+
+/* ── Titres ──────────────────────────────────────────────────────── */
+QLabel#titreDashboard {
+    font-size: 22px;
+    font-weight: bold;
+    color: #f1f1f1;
+}
+
+QLabel#titreSectionSessions {
+    color: #8b8d98;
+    font-size: 11px;
+    font-weight: bold;
+    letter-spacing: 1px;
+}
+
+/* ── Séparateurs ─────────────────────────────────────────────────── */
+QFrame#separateurSession {
+    background-color: #2a2a28;
+    border: none;
+    max-height: 1px;
+}
+
+/* ── Badges ──────────────────────────────────────────────────────── */
+QLabel#badgeAdmin {
+    background-color: rgba(91, 110, 232, 0.15);
+    color: #5b6ee8;
+    border: 1px solid rgba(91, 110, 232, 0.30);
+    border-radius: 5px;
+    font-size: 11px;
+    font-weight: bold;
+    padding: 1px 7px;
+}
+QLabel#badgeCaissier {
+    background-color: rgba(94, 234, 212, 0.12);
+    color: #5eead4;
+    border: 1px solid rgba(94, 234, 212, 0.25);
+    border-radius: 5px;
+    font-size: 11px;
+    font-weight: bold;
+    padding: 1px 7px;
+}
+QLabel#badgeActif {
+    background-color: rgba(74, 222, 128, 0.12);
+    color: #4ade80;
+    border: 1px solid rgba(74, 222, 128, 0.25);
+    border-radius: 5px;
+    font-size: 11px;
+    font-weight: bold;
+    padding: 1px 7px;
+}
+QLabel#badgeInactif {
+    background-color: rgba(92, 95, 110, 0.18);
+    color: #8b8d98;
+    border: 1px solid rgba(92, 95, 110, 0.30);
+    border-radius: 5px;
+    font-size: 11px;
+    padding: 1px 7px;
+}
+QLabel#badgeNeutre {
+    background-color: rgba(46, 46, 43, 0.70);
+    color: #8b8d98;
+    border: 1px solid #363633;
+    border-radius: 5px;
+    font-size: 11px;
+    padding: 1px 7px;
+}
+QLabel#badgeBlocage {
+    background-color: rgba(248, 113, 113, 0.12);
+    color: #f87171;
+    border: 1px solid rgba(248, 113, 113, 0.25);
+    border-radius: 5px;
+    font-size: 11px;
+    font-weight: bold;
+    padding: 1px 7px;
+}
+QLabel#badgeExpire {
+    background-color: rgba(92, 95, 110, 0.18);
+    color: #5c5f6e;
+    border: 1px solid rgba(92, 95, 110, 0.30);
+    border-radius: 5px;
+    font-size: 11px;
+    padding: 1px 7px;
+}
+
+/* ── Labels récurrents ───────────────────────────────────────────── */
+QLabel#nomUtilisateur {
+    color: #f1f1f1;
+    font-size: 13px;
+    font-weight: bold;
+}
+QLabel#loginUtilisateur { color: #8b8d98; font-size: 12px; }
+QLabel#montantVente     { color: #4ade80; font-size: 14px; font-weight: bold; }
+QLabel#labelHeure       { color: #5c5f6e; font-size: 11px; }
+
+/* ── Boutons ─────────────────────────────────────────────────────── */
+QPushButton#boutonActionPage {
+    background-color: #5b6ee8;
+    color: #ffffff;
+    border: none;
+    border-radius: 8px;
+    padding: 0 20px;
+    min-height: 38px;
+    font-size: 13px;
+    font-weight: bold;
+}
+QPushButton#boutonActionPage:hover   { background-color: #6d7ded; }
+QPushButton#boutonActionPage:pressed { background-color: #4856c4; }
+
+QPushButton#boutonVendre {
+    background-color: #5b6ee8;
+    color: #ffffff;
+    border: none;
+    border-radius: 8px;
+    padding: 0 20px;
+    font-size: 14px;
+    font-weight: bold;
+}
+QPushButton#boutonVendre:hover   { background-color: #6d7ded; }
+QPushButton#boutonVendre:pressed { background-color: #4856c4; }
+QPushButton#boutonVendre:disabled { background-color: #2e2e2b; color: #5c5f6e; }
+
+QPushButton#boutonActionLimiter,
+QPushButton#boutonActionBloquer,
+QPushButton#boutonActionIdentifier,
+QPushButton#boutonActionHistorique {
+    background-color: transparent;
+    border: 1px solid #363633;
+    border-radius: 6px;
+    color: #d1d2d8;
+    font-size: 12px;
+    padding: 0 14px;
+    min-height: 30px;
+    min-width: 72px;
+}
+QPushButton#boutonActionLimiter:hover,
+QPushButton#boutonActionHistorique:hover,
+QPushButton#boutonActionIdentifier:hover {
+    border-color: #5b6ee8;
+    color: #5b6ee8;
+    background-color: rgba(91, 110, 232, 0.08);
+}
+QPushButton#boutonActionBloquer:hover {
+    border-color: #f87171;
+    color: #f87171;
+    background-color: rgba(248, 113, 113, 0.06);
+}
+
+QPushButton#boutonPaiement {
+    background-color: transparent;
+    border: 1px solid #363633;
+    border-radius: 8px;
+    color: #8b8d98;
+    font-size: 13px;
+    padding: 0 14px;
+    min-height: 36px;
+}
+QPushButton#boutonPaiement:hover {
+    border-color: #5b6ee8;
+    color: #f1f1f1;
+    background-color: rgba(91, 110, 232, 0.07);
+}
+QPushButton#boutonPaiement:checked {
+    background-color: rgba(91, 110, 232, 0.18);
+    border-color: #5b6ee8;
+    color: #5b6ee8;
+    font-weight: bold;
+}
+
+/* ── Champs de saisie ────────────────────────────────────────────── */
+QLineEdit#barreRecherche {
+    background-color: #282826;
+    border: 1px solid #2e2e2b;
+    border-radius: 8px;
+    padding: 0 12px;
+    min-height: 36px;
+    color: #f1f1f1;
+    font-size: 13px;
+}
+QLineEdit#barreRecherche:focus { border-color: #5b6ee8; }
+QLineEdit#barreRecherche::placeholder { color: #5c5f6e; }
+
+/* ── QComboBox ───────────────────────────────────────────────────── */
+QComboBox#comboParametres {
+    background-color: #1c1c1b;
+    border: 1px solid #363633;
+    border-radius: 8px;
+    padding: 0 12px;
+    min-height: 40px;
+    color: #f1f1f1;
+    font-size: 13px;
+}
+QComboBox#comboParametres:focus,
+QComboBox#comboParametres:on   { border-color: #5b6ee8; }
+QComboBox#comboParametres:hover { border-color: #4a4a47; }
+QComboBox#comboParametres::drop-down {
+    border: none;
+    width: 28px;
+    subcontrol-position: right center;
+}
+QComboBox#comboParametres QAbstractItemView {
+    background-color: #282826;
+    border: 1px solid #363633;
+    border-radius: 6px;
+    color: #f1f1f1;
+    padding: 4px;
+    selection-background-color: rgba(91, 110, 232, 0.25);
+    outline: none;
+}
+QComboBox#comboParametres QAbstractItemView::item {
+    min-height: 32px;
+    padding: 0 8px;
+    border-radius: 4px;
+}
+
+/* ── QSpinBox ────────────────────────────────────────────────────── */
+QSpinBox#comboParametres {
+    background-color: #1c1c1b;
+    border: 1px solid #363633;
+    border-radius: 8px;
+    padding: 0 10px;
+    min-height: 38px;
+    color: #f1f1f1;
+    font-size: 13px;
+}
+QSpinBox#comboParametres:focus { border-color: #5b6ee8; }
+QSpinBox#comboParametres:hover { border-color: #4a4a47; }
+QSpinBox#comboParametres::up-button,
+QSpinBox#comboParametres::down-button {
+    background-color: transparent;
+    border: none;
+    width: 20px;
+}
+QSpinBox#comboParametres::up-button:hover,
+QSpinBox#comboParametres::down-button:hover {
+    background-color: rgba(91, 110, 232, 0.12);
+    border-radius: 4px;
+}
+
+/* ── Dialogs ─────────────────────────────────────────────────────── */
+QDialog#dialogVente    { background-color: #20201f; }
+QWidget#pageDialogVente { background-color: #20201f; }

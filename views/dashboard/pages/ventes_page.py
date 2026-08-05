@@ -1,16 +1,51 @@
 from datetime import datetime
 
 import qtawesome as qta
-from PyQt6.QtCore import Qt, QTimer
+from PyQt6.QtCore import QThread, Qt, QTimer, pyqtSignal
 from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton,
-    QFrame, QScrollArea, QProgressBar,
+    QFrame, QScrollArea, QProgressBar, QMessageBox,
 )
 
 from controllers.ventes.ventes_controller import VentesController
 from views.dashboard.components.stat_card import StatCard
 from views.dashboard.components.dialog_vente import DialogVente
 from models.user import User
+
+
+class SynchronisationMikrotikThread(QThread):
+    """Enregistre le ticket sur le routeur MikroTik en arrière-plan."""
+
+    terminee = pyqtSignal(dict)
+
+    def __init__(self, controller: VentesController, ticket_id: int, parent=None):
+        super().__init__(parent)
+        self._controller = controller
+        self._ticket_id = ticket_id
+
+    def run(self):
+        try:
+            resultat = self._controller.synchroniser_ticket_mikrotik(self._ticket_id)
+        except Exception as exc:
+            resultat = {"ok": False, "message": str(exc)}
+        self.terminee.emit(resultat)
+
+
+class DetectionConnexionsThread(QThread):
+    """Détecte les premières connexions des tickets vendus sur le routeur."""
+
+    terminee = pyqtSignal(dict)
+
+    def __init__(self, controller: VentesController, parent=None):
+        super().__init__(parent)
+        self._controller = controller
+
+    def run(self):
+        try:
+            resultat = self._controller.detecter_premieres_connexions()
+        except Exception as exc:
+            resultat = {"detectes": 0, "erreur": str(exc)}
+        self.terminee.emit(resultat)
 
 
 _LABELS_METHODE = {
@@ -30,14 +65,13 @@ def _sep() -> QFrame:
 # ── Widget : ticket actif avec countdown ────────────────────────────────────
 
 class LigneTicketActif(QWidget):
-    """Ligne d'un ticket encore valide avec barre de progression et countdown live."""
-
     def __init__(self, vente: dict, parent=None):
         super().__init__(parent)
         self.setObjectName("ligneTicketActif")
 
         self._expiration_dt    = vente["expiration_dt"]
         self._duree_totale_sec = vente["profil_duree_min"] * 60.0
+        self._demarre          = bool(vente.get("demarre", True))
 
         lay = QVBoxLayout(self)
         lay.setContentsMargins(20, 16, 20, 14)
@@ -47,11 +81,10 @@ class LigneTicketActif(QWidget):
         h_top = QHBoxLayout()
         h_top.setSpacing(12)
 
-        # Pastille verte
-        dot = QLabel()
-        dot.setFixedSize(10, 10)
-        dot.setStyleSheet("background-color: #4ade80; border-radius: 5px;")
-        h_top.addWidget(dot)
+        # Pastille verte (grisée tant que le client ne s'est pas connecté)
+        self._dot = QLabel()
+        self._dot.setFixedSize(10, 10)
+        h_top.addWidget(self._dot)
 
         # Code monospace
         lbl_code = QLabel(vente["code"])
@@ -65,10 +98,12 @@ class LigneTicketActif(QWidget):
         lbl_profil.setObjectName("nomUtilisateur")
         h_top.addWidget(lbl_profil)
 
-        # Badge méthode
+        # Badge méthode — largeur fixe
         label_m, style_m = _LABELS_METHODE.get(vente["methode"], ("—", "badgeNeutre"))
-        badge = QLabel(f"  {label_m}  ")
+        badge = QLabel(label_m)
         badge.setObjectName(style_m)
+        badge.setFixedWidth(104)
+        badge.setAlignment(Qt.AlignmentFlag.AlignCenter)
         h_top.addWidget(badge)
 
         h_top.addStretch()
@@ -109,7 +144,22 @@ class LigneTicketActif(QWidget):
 
     def actualiser(self):
         """Recalcule et affiche le temps restant. Appelé chaque seconde."""
-        now         = datetime.now()
+        now = datetime.now()
+
+        # Timer non démarré : le client ne s'est pas encore connecté
+        if not self._demarre:
+            self._dot.setStyleSheet("background-color: #5c5f6e; border-radius: 5px;")
+            self._barre.setValue(0)
+            self._barre.setStyleSheet(
+                "QProgressBar{background-color:#2f3340;border:none;border-radius:3px;}"
+                "QProgressBar::chunk{{background-color:#5c5f6e;border-radius:3px;}}"
+            )
+            self._lbl_temps.setText("En attente de connexion")
+            self._lbl_temps.setStyleSheet("color:#5c5f6e;font-size:13px;font-weight:bold;")
+            self._lbl_pct.setText("—")
+            return
+
+        self._dot.setStyleSheet("background-color: #4ade80; border-radius: 5px;")
         restant_sec = max(0.0, (self._expiration_dt - now).total_seconds())
         ecoul_sec   = self._duree_totale_sec - restant_sec
         pct_mille   = int(min(1000, (ecoul_sec / self._duree_totale_sec) * 1000))
@@ -134,12 +184,18 @@ class LigneTicketActif(QWidget):
             self._lbl_temps.setStyleSheet("color:#5c5f6e;font-size:13px;font-weight:bold;")
             self._lbl_pct.setText("100%")
         else:
-            h = int(restant_sec // 3600)
+            d = int(restant_sec // 86400)
+            h = int((restant_sec % 86400) // 3600)
             m = int((restant_sec % 3600) // 60)
             s = int(restant_sec % 60)
-            texte = (f"{h}h {m:02d}m {s:02d}s" if h > 0
-                     else f"{m}min {s:02d}s" if m > 0
-                     else f"{s}s")
+            if d > 0:
+                texte = f"{d}j {h:02d}h {m:02d}m"
+            elif h > 0:
+                texte = f"{h}h {m:02d}m {s:02d}s"
+            elif m > 0:
+                texte = f"{m}min {s:02d}s"
+            else:
+                texte = f"{s}s"
             self._lbl_temps.setText(f"{texte} restant")
             self._lbl_temps.setStyleSheet(
                 f"color:{couleur};font-size:13px;font-weight:bold;"
@@ -163,65 +219,69 @@ class LigneVente(QWidget):
         self.setObjectName("ligneVente")
 
         lay = QHBoxLayout(self)
-        lay.setContentsMargins(20, 11, 20, 11)
-        lay.setSpacing(14)
+        lay.setContentsMargins(20, 12, 20, 12)
+        lay.setSpacing(0)
 
-        # Heure
+        # Heure — colonne fixe
         lbl_h = QLabel(vente["heure"])
         lbl_h.setObjectName("heureVente")
-        lbl_h.setFixedWidth(42)
+        lbl_h.setFixedWidth(48)
         lay.addWidget(lbl_h)
 
-        # Code monospace
+        lay.addSpacing(12)
+
+        # Code monospace — colonne fixe
         lbl_code = QLabel(vente["code"])
         lbl_code.setObjectName("codeVente")
-        lbl_code.setFixedWidth(88)
+        lbl_code.setFixedWidth(90)
         lay.addWidget(lbl_code)
 
-        # Profil
+        lay.addSpacing(12)
+
+        # Profil — extensible
         lbl_profil = QLabel(vente["profil"])
         lbl_profil.setObjectName("nomUtilisateur")
-        lay.addWidget(lbl_profil)
+        lay.addWidget(lbl_profil, stretch=1)
 
-        lay.addStretch()
+        lay.addSpacing(16)
 
-        # Badge méthode
+        # Badge méthode — colonne fixe (Mobile Money est le plus long)
         label_m, style_m = _LABELS_METHODE.get(vente["methode"], ("—", "badgeNeutre"))
-        badge_m = QLabel(f"  {label_m}  ")
+        badge_m = QLabel(label_m)
         badge_m.setObjectName(style_m)
+        badge_m.setFixedWidth(104)
+        badge_m.setAlignment(Qt.AlignmentFlag.AlignCenter)
         lay.addWidget(badge_m)
 
-        lay.addSpacing(8)
+        lay.addSpacing(16)
 
-        # Montant
+        # Montant — colonne fixe, aligné à droite
         lbl_montant = QLabel(f"{int(vente['montant'])} Ar")
         lbl_montant.setObjectName("montantVente")
-        lbl_montant.setFixedWidth(72)
+        lbl_montant.setFixedWidth(80)
         lbl_montant.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
         lay.addWidget(lbl_montant)
 
-        lay.addSpacing(8)
+        lay.addSpacing(16)
 
-        # Statut actif / expiré
-        if vente.get("actif", False):
-            badge_s = QLabel("  Actif  ")
-            badge_s.setObjectName("badgeActif")
-        else:
-            badge_s = QLabel("  Expiré  ")
-            badge_s.setObjectName("badgeExpire")
+        # Statut — colonne fixe (Expiré est le plus long)
+        badge_s = QLabel("Actif" if vente.get("actif", False) else "Expiré")
+        badge_s.setObjectName("badgeActif" if vente.get("actif", False) else "badgeExpire")
+        badge_s.setFixedWidth(62)
+        badge_s.setAlignment(Qt.AlignmentFlag.AlignCenter)
         lay.addWidget(badge_s)
 
 
 # ── Page Ventes ──────────────────────────────────────────────────────────────
 
 class VentesPage(QWidget):
-    """Page de vente de tickets avec suivi en temps réel des tickets actifs."""
-
     def __init__(self, ventes_controller: VentesController, current_user: User, parent=None):
         super().__init__(parent)
         self._controller   = ventes_controller
         self._current_user = current_user
         self._lignes_actives: list[LigneTicketActif] = []
+        self._synchro_thread: SynchronisationMikrotikThread | None = None
+        self._detection_thread: DetectionConnexionsThread | None = None
 
         self._construire_interface()
 
@@ -236,6 +296,12 @@ class VentesPage(QWidget):
         self._timer_refresh.setInterval(60_000)
         self._timer_refresh.timeout.connect(self.rafraichir_donnees)
         self._timer_refresh.start()
+
+        # Timer 30 s : détection des premières connexions sur le routeur
+        self._timer_detection = QTimer(self)
+        self._timer_detection.setInterval(30_000)
+        self._timer_detection.timeout.connect(self._lancer_detection)
+        self._timer_detection.start()
 
         self.rafraichir_donnees()
 
@@ -353,8 +419,7 @@ class VentesPage(QWidget):
         self._stat_actifs.mettre_a_jour(str(totaux["nb_actifs"]))
         self._badge_ca.setText(f"  Aujourd'hui : {int(totaux['ca_total'])} Ar  ")
 
-        actifs   = [v for v in ventes if v["actif"]]
-        expires  = [v for v in ventes if not v["actif"]]
+        actifs = [v for v in ventes if v["actif"]]
 
         self._titre_actifs.setText(f"TICKETS EN COURS  ·  {len(actifs)}")
         self._titre_historique.setText(f"HISTORIQUE DU JOUR  ·  {len(ventes)}")
@@ -404,8 +469,53 @@ class VentesPage(QWidget):
         dialog.exec()
 
     def _on_ticket_vendu(self, ticket: dict):
-        self._controller.enregistrer_vente(ticket, self._current_user.id or 1)
+        resultat = self._controller.enregistrer_vente(ticket, self._current_user.id or 1)
+        if not resultat.get("ok"):
+            QMessageBox.critical(
+                self, "Erreur",
+                f"La vente n'a pas pu être enregistrée.\n{resultat.get('erreur', 'Erreur inconnue.')}",
+            )
+            return
+
         self.rafraichir_donnees()
+        self._synchroniser_mikrotik(resultat["ticket_id"], resultat["code"])
+
+    def _synchroniser_mikrotik(self, ticket_id: int, code: str):
+        """Enregistre le ticket sur le routeur en arrière-plan puis avertit en cas d'échec."""
+        if self._synchro_thread is not None and self._synchro_thread.isRunning():
+            QMessageBox.warning(
+                self, "Synchronisation en cours",
+                "Une synchronisation est déjà en cours. Elle s'appliquera aussi au ticket précédent.",
+            )
+            return
+
+        self._synchro_thread = SynchronisationMikrotikThread(self._controller, ticket_id, self)
+        self._synchro_thread.terminee.connect(
+            lambda r, c=code: self._on_synchro_terminee(r, c)
+        )
+        self._synchro_thread.start()
+
+    def _on_synchro_terminee(self, resultat: dict, code: str):
+        if not resultat.get("ok"):
+            QMessageBox.warning(
+                self, "Ticket non enregistré sur le routeur",
+                f"Le ticket {code} a été vendu mais n'a PAS été créé sur le MikroTik.\n\n"
+                f"{resultat.get('message', 'Erreur inconnue.')}\n\n"
+                "Le client ne pourra pas se connecter tant que le ticket ne sera pas créé "
+                "sur le routeur (Zones WiFi → Configurer, ou IP → Hotspot → Users).",
+            )
+
+    def _lancer_detection(self):
+        """Détecte les premières connexions en arrière-plan (routeur)."""
+        if self._detection_thread is not None and self._detection_thread.isRunning():
+            return
+        self._detection_thread = DetectionConnexionsThread(self._controller, self)
+        self._detection_thread.terminee.connect(self._on_detection_terminee)
+        self._detection_thread.start()
+
+    def _on_detection_terminee(self, resultat: dict):
+        if resultat.get("detectes", 0) > 0:
+            self.rafraichir_donnees()
 
     # ── Helpers ──────────────────────────────────────────────────────────
 

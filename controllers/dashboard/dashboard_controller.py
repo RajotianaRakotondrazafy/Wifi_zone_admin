@@ -1,61 +1,74 @@
+import time
+import logging
 from typing import Any
+
+from repositories.router_repository import RouterRepository
+from services.mikrotik_service import MikroTikService
+
+logger = logging.getLogger(__name__)
+
+# Délai minimum entre deux tentatives de connexion échouées
+_BACKOFF = 30.0
 
 
 class DashboardController:
-    """Orchestration des données pour le tableau de bord."""
+    def __init__(self):
+        self._mikrotik    = MikroTikService()
+        self._router_repo = RouterRepository()
+        self._echec_ts    = 0.0   # timestamp du dernier échec de connexion
+
+    def _routeur_actif(self):
+        try:
+            routeurs = self._router_repo.lister_tous()
+        except Exception:
+            return None
+        for r in routeurs:
+            if getattr(r, "statut", "") == "actif":
+                return r
+        return routeurs[0] if routeurs else None
+
+    def _tenter_connexion(self) -> bool:
+        if time.monotonic() - self._echec_ts < _BACKOFF:
+            return False
+
+        routeur = self._routeur_actif()
+        if routeur is None:
+            logger.warning("Aucun routeur configuré dans Zones WiFi.")
+            self._echec_ts = time.monotonic()
+            return False
+
+        if not (routeur.adresse_ip and routeur.username and routeur.password_chiffre):
+            logger.warning(
+                "Routeur « %s » incomplet (IP/user/password manquants).", routeur.nom
+            )
+            self._echec_ts = time.monotonic()
+            return False
+
+        ok = self._mikrotik.connecter_routeur(
+            routeur.adresse_ip,
+            routeur.username,
+            routeur.password_chiffre,
+            routeur.port_api or 8728,
+        )
+        if not ok:
+            self._echec_ts = time.monotonic()
+        return ok
 
     def obtenir_donnees_dashboard(self) -> dict[str, Any]:
-        """Retourne les statistiques réseau et les sessions actives.
+        """Retourne un snapshot en temps réel depuis le MikroTik actif."""
+        if not self._mikrotik.connecte:
+            self._tenter_connexion()
 
-        TODO: Remplacer les données factices ci-dessous par des appels réels à
-              mikrotik_service (RouterOS API) et session_repository (SQLite).
-              mikrotik_service.obtenir_statistiques() → statistiques
-              session_repository.lister_sessions_actives() → sessions_actives
-        """
-        statistiques = {
-            "appareils_connectes": 7,
-            "appareils_max": 20,
-            "debit_descendant": 148,   # Mb/s
-            "debit_montant": 22,        # Mb/s
-            "latence": 42,              # ms
-        }
-
-        sessions_actives = [
-            {
-                "nom_appareil": "Jean Dupont",
-                "mac_address": "A4:C3:F0:12:33:BB",
-                "type_appareil": "iPhone 14",
-                "debit_actuel": 12,
-                "est_connecte": True,
-                "est_identifie": True,
-            },
-            {
-                "nom_appareil": "Marie A.",
-                "mac_address": "B8:27:EB:44:A1:02",
-                "type_appareil": "MacBook Pro",
-                "debit_actuel": 47,
-                "est_connecte": True,
-                "est_identifie": True,
-            },
-            {
-                "nom_appareil": "Inconnu",
-                "mac_address": "DC:A6:32:F5:88:21",
-                "type_appareil": "Appareil inconnu",
-                "debit_actuel": 3,
-                "est_connecte": True,
-                "est_identifie": False,
-            },
-            {
-                "nom_appareil": "PC Bureau",
-                "mac_address": "F0:18:98:AA:22:CC",
-                "type_appareil": "Windows 11",
-                "debit_actuel": 0,
-                "est_connecte": False,
-                "est_identifie": True,
-            },
-        ]
+        snap = self._mikrotik.obtenir_stats_dashboard()
 
         return {
-            "statistiques": statistiques,
-            "sessions_actives": sessions_actives,
+            "connecte": snap["connecte"],
+            "statistiques": {
+                "appareils_connectes": snap["appareils_connectes"],
+                "appareils_max":       0,
+                "debit_descendant":    snap["debit_descendant"],
+                "debit_montant":       snap["debit_montant"],
+                "latence":             snap["latence"],
+            },
+            "sessions_actives": snap["sessions"],
         }

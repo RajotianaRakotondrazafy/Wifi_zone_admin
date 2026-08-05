@@ -1,5 +1,4 @@
 import qtawesome as qta
-from pathlib import Path
 
 from PyQt6.QtCore import Qt, QEvent, pyqtSignal, QSize
 from PyQt6.QtWidgets import (
@@ -9,9 +8,7 @@ from PyQt6.QtWidgets import (
 
 from controllers.auth.auth_controller import AuthController
 from models.user import User
-
-
-CHEMIN_QSS = Path(__file__).resolve().parent.parent / "assets" / "styles" / "dark_theme.qss"
+from services.theme import charger_theme
 
 
 class _ChampIcone(QFrame):
@@ -206,8 +203,7 @@ class LoginView(QWidget):
 
     def _appliquer_theme(self):
         try:
-            with open(CHEMIN_QSS, "r", encoding="utf-8") as f:
-                self.setStyleSheet(f.read())
+            self.setStyleSheet(charger_theme())
         except FileNotFoundError:
             pass
 

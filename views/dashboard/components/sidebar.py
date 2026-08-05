@@ -83,6 +83,8 @@ class Sidebar(QWidget):
     """Menu latéral de navigation principal."""
 
     item_selectionne = pyqtSignal(str)
+    deconnexion_demandee = pyqtSignal()
+
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -128,6 +130,16 @@ class Sidebar(QWidget):
             self._boutons[texte] = bouton
 
         layout.addStretch()
+
+        # --- Déconnexion en bas ---
+        separateur_bas = QFrame()
+        separateur_bas.setFrameShape(QFrame.Shape.HLine)
+        separateur_bas.setObjectName("separateurSidebar")
+        layout.addWidget(separateur_bas)
+
+        btn_deconnexion = BoutonMenu("fa5s.sign-out-alt", "Déconnexion")
+        btn_deconnexion.clique.connect(self.deconnexion_demandee.emit)
+        layout.addWidget(btn_deconnexion)
 
         # Activer "Tableau de bord" par défaut
         self._selectionner("Tableau de bord")

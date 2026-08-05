@@ -1,0 +1,82 @@
+/* ================================================================
+   PAGE VENTES
+   ================================================================ */
+
+QWidget#ligneVente { background-color: transparent; }
+QWidget#ligneVente:hover { background-color: rgba(255, 255, 255, 0.025); }
+
+QLabel#heureVente { color: #5c5f6e; font-size: 12px; font-weight: bold; }
+QLabel#codeVente  { color: #8b8d98; font-size: 12px; font-family: "Consolas", "Courier New", monospace; letter-spacing: 1px; }
+
+/* Tickets actifs */
+QWidget#ligneTicketActif {
+    background-color: rgba(74, 222, 128, 0.03);
+    border-left: 3px solid rgba(74, 222, 128, 0.28);
+}
+QWidget#ligneTicketActif:hover { background-color: rgba(74, 222, 128, 0.055); }
+
+QLabel#codeTicketActif {
+    color: #f1f1f1;
+    font-size: 14px;
+    font-weight: bold;
+    font-family: "Consolas", "Courier New", monospace;
+    letter-spacing: 2px;
+}
+
+/* Carte détail profil (dialog) */
+QFrame#carteDetailProfil {
+    background-color: rgba(91, 110, 232, 0.07);
+    border: 1px solid rgba(91, 110, 232, 0.18);
+    border-radius: 10px;
+}
+QLabel#valeurDetailProfil { color: #f1f1f1; font-size: 15px; font-weight: bold; }
+
+/* Cartes forfait */
+QFrame#carteProfil {
+    background-color: #272725;
+    border: 1px solid #363633;
+    border-radius: 10px;
+}
+QFrame#carteProfil:hover {
+    border-color: #5b6ee8;
+    background-color: rgba(91, 110, 232, 0.07);
+}
+QFrame#carteProfil[actif="true"] {
+    background-color: rgba(91, 110, 232, 0.14);
+    border: 2px solid #5b6ee8;
+}
+QLabel#nomCarteProfil  { color: #f1f1f1; font-size: 13px; font-weight: bold; background-color: transparent; }
+QLabel#subCarteProfil  { color: #5c5f6e; font-size: 11px; background-color: transparent; }
+QLabel#prixCarteProfil { color: #4ade80; font-size: 15px; font-weight: bold; background-color: transparent; }
+
+/* Carte ticket généré */
+QFrame#carteTicketGenere {
+    background-color: #272725;
+    border-radius: 16px;
+    border: 1px solid #2e2e2b;
+}
+QLabel#codeTicketGenere {
+    color: #f1f1f1;
+    font-size: 36px;
+    font-weight: bold;
+    font-family: "Consolas", "Courier New", monospace;
+    letter-spacing: 5px;
+}
+QLabel#passwordTicketGenere {
+    color: #8b8d98;
+    font-size: 22px;
+    font-family: "Consolas", "Courier New", monospace;
+    letter-spacing: 3px;
+}
+
+QLabel#badgeSuccesVente {
+    background-color: rgba(74, 222, 128, 0.10);
+    color: #4ade80;
+    border: 1px solid rgba(74, 222, 128, 0.28);
+    border-radius: 10px;
+    font-size: 13px;
+    font-weight: bold;
+    padding: 7px 18px;
+}
+
+QLabel#recapTicket { color: #5c5f6e; font-size: 12px; }

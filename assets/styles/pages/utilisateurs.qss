@@ -1,0 +1,14 @@
+/* ================================================================
+   PAGE UTILISATEURS
+   ================================================================ */
+
+QWidget#ligneUtilisateur { background-color: transparent; }
+QWidget#ligneUtilisateur:hover { background-color: rgba(255, 255, 255, 0.025); }
+
+/* Ligne d'un compte inactif : contenu estompé */
+QWidget#ligneUtilisateur[inactif="true"] QLabel#nomUtilisateur {
+    color: #5c5f6e;
+}
+QWidget#ligneUtilisateur[inactif="true"] QLabel#loginUtilisateur {
+    color: #5c5f6e;
+}

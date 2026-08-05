@@ -1,0 +1,15 @@
+/* ================================================================
+   PAGE STATISTIQUES
+   ================================================================ */
+
+QProgressBar#barreActivite {
+    background-color: #2a2a28;
+    border: none;
+    border-radius: 5px;
+}
+QProgressBar#barreActivite::chunk {
+    background-color: #5b6ee8;
+    border-radius: 5px;
+}
+
+QLabel#labelValeurBarre { color: #8b8d98; font-size: 11px; }

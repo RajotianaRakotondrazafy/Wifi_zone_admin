@@ -19,6 +19,8 @@ class HotspotProfile:
     validite: int
     # Prix de vente en unité monétaire locale
     prix: float
+    # Statut : 'actif' (proposé à la vente) | 'inactif' (masqué)
+    statut: str = "actif"
     id: Optional[int] = None
 
     def to_dict(self) -> dict:
@@ -30,6 +32,7 @@ class HotspotProfile:
             "duree_session_max": self.duree_session_max,
             "validite": self.validite,
             "prix": self.prix,
+            "statut": self.statut,
         }
 
     @classmethod
@@ -42,4 +45,5 @@ class HotspotProfile:
             duree_session_max=data["duree_session_max"],
             validite=data["validite"],
             prix=data["prix"],
+            statut=data.get("statut", "actif"),
         )

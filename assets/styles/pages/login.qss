@@ -1,0 +1,118 @@
+/* ================================================================
+   PAGE CONNEXION
+   ================================================================ */
+
+QFrame#cardLogin {
+    background-color: #272725;
+    border-radius: 20px;
+    border: 1px solid #2e2e2b;
+}
+
+QLabel#cercleIconeLogin {
+    background-color: rgba(91, 110, 232, 0.14);
+    border-radius: 36px;
+    border: 1px solid rgba(91, 110, 232, 0.30);
+}
+
+QLabel#titreApp {
+    font-size: 26px;
+    font-weight: bold;
+    color: #f1f1f1;
+    letter-spacing: 0.5px;
+    qproperty-alignment: AlignCenter;
+}
+
+QLabel#badgeZoneLogin {
+    font-size: 10px;
+    font-weight: bold;
+    color: #5b6ee8;
+    background-color: rgba(91, 110, 232, 0.14);
+    border: 1px solid rgba(91, 110, 232, 0.28);
+    border-radius: 8px;
+    padding: 2px 12px;
+    qproperty-alignment: AlignCenter;
+    letter-spacing: 2px;
+}
+
+QLabel#sousTitre {
+    font-size: 13px;
+    color: #8b8d98;
+    qproperty-alignment: AlignCenter;
+}
+
+QFrame#separateurLogin {
+    background-color: #2e2e2b;
+    border: none;
+    max-height: 1px;
+}
+
+QLabel#labelChamp {
+    color: #8b8d98;
+    font-size: 12px;
+    font-weight: bold;
+    letter-spacing: 0.5px;
+}
+
+QFrame#conteneurChamp {
+    background-color: #1c1c1b;
+    border: 1px solid #363633;
+    border-radius: 10px;
+    min-height: 48px;
+}
+QFrame#conteneurChamp[actif="true"] {
+    border: 1.5px solid #5b6ee8;
+    background-color: rgba(91, 110, 232, 0.04);
+}
+
+QLineEdit#champAvecIcone {
+    background-color: transparent;
+    border: none;
+    padding: 0 4px 0 0;
+    color: #f1f1f1;
+    selection-background-color: #5b6ee8;
+    font-size: 14px;
+}
+QLineEdit#champAvecIcone::placeholder { color: #4a4a47; }
+
+QLabel#iconeChamp { background-color: transparent; }
+
+QPushButton#boutonToggleMdp {
+    background-color: transparent;
+    border: none;
+    border-radius: 5px;
+}
+QPushButton#boutonToggleMdp:hover {
+    background-color: rgba(255, 255, 255, 0.06);
+}
+
+QPushButton#boutonConnexion {
+    background-color: #5b6ee8;
+    color: #ffffff;
+    border: none;
+    border-radius: 10px;
+    font-size: 15px;
+    font-weight: bold;
+    letter-spacing: 0.3px;
+    min-height: 48px;
+}
+QPushButton#boutonConnexion:hover   { background-color: #6d7ded; }
+QPushButton#boutonConnexion:pressed { background-color: #4856c4; }
+QPushButton#boutonConnexion:disabled {
+    background-color: #2e2e2b;
+    color: #5c5f6e;
+}
+
+QLabel#labelErreur {
+    color: #f87171;
+    font-size: 12px;
+    qproperty-alignment: AlignCenter;
+    background-color: rgba(248, 113, 113, 0.07);
+    border: 1px solid rgba(248, 113, 113, 0.18);
+    border-radius: 7px;
+    padding: 7px 10px;
+}
+
+QLabel#footerLogin {
+    color: #363633;
+    font-size: 11px;
+}

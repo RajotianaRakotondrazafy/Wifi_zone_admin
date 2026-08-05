@@ -1,0 +1,110 @@
+/* ================================================================
+   TABLEAU DE BORD — SIDEBAR + CARDS
+   ================================================================ */
+
+/* ── Sidebar ─────────────────────────────────────────────────────── */
+QWidget#sidebar {
+    background-color: #1a1a19;
+    border-right: 1px solid #2a2a28;
+}
+
+QWidget#entetesSidebar {
+    background-color: #1a1a19;
+    border-bottom: 1px solid #2a2a28;
+}
+
+QLabel#titreSidebar {
+    font-size: 13px;
+    font-weight: bold;
+    color: #f1f1f1;
+    letter-spacing: 0.5px;
+}
+
+QFrame#separateurSidebar {
+    background-color: #2a2a28;
+    border: none;
+    max-height: 1px;
+}
+
+/* Menu — normal */
+QWidget#conteneurBoutonMenu { background-color: transparent; }
+QWidget#conteneurBoutonMenu:hover { background-color: rgba(255, 255, 255, 0.04); }
+
+QLabel#labelBoutonMenu {
+    color: #8b8d98;
+    font-size: 13px;
+    background-color: transparent;
+}
+
+/* Menu — actif */
+QWidget#conteneurBoutonMenuActif {
+    background-color: rgba(91, 110, 232, 0.12);
+}
+
+QLabel#labelBoutonMenuActif {
+    color: #f1f1f1;
+    font-size: 13px;
+    font-weight: bold;
+    background-color: transparent;
+}
+
+QFrame#barreAccentSidebar {
+    background-color: #5b6ee8;
+    border: none;
+    min-height: 44px;
+    max-height: 44px;
+    border-radius: 0 2px 2px 0;
+}
+
+/* ── Badge connexion ─────────────────────────────────────────────── */
+QWidget#badgeConnexion {
+    background-color: rgba(74, 222, 128, 0.10);
+    border-radius: 12px;
+    border: 1px solid rgba(74, 222, 128, 0.20);
+}
+
+QLabel#pastilleConnexion {
+    background-color: #4ade80;
+    border-radius: 4px;
+    min-width: 8px; max-width: 8px;
+    min-height: 8px; max-height: 8px;
+}
+
+QLabel#texteBadgeConnexion {
+    color: #4ade80;
+    font-size: 12px;
+    font-weight: bold;
+}
+
+/* ── StatCard ────────────────────────────────────────────────────── */
+QFrame#statCard {
+    background-color: #282826;
+    border-radius: 14px;
+    border: 1px solid #2e2e2b;
+}
+
+QLabel#cercleIconeStatCard {
+    background-color: rgba(91, 110, 232, 0.15);
+    border-radius: 19px;
+    border: 1px solid rgba(91, 110, 232, 0.20);
+}
+
+QLabel#titreStatCard   { color: #8b8d98; font-size: 12px; }
+QLabel#valeurStatCard  { color: #f1f1f1; font-size: 28px; font-weight: bold; }
+QLabel#sousTexteStatCard { color: #5c5f6e; font-size: 12px; }
+
+/* ── Card sessions ───────────────────────────────────────────────── */
+QFrame#cardSessions {
+    background-color: #282826;
+    border-radius: 14px;
+    border: 1px solid #2e2e2b;
+}
+
+/* ── Lignes session ──────────────────────────────────────────────── */
+QWidget#sessionRow { background-color: transparent; }
+QWidget#sessionRow:hover { background-color: rgba(255, 255, 255, 0.025); }
+
+QLabel#nomSessionRow   { color: #f1f1f1; font-size: 13px; font-weight: bold; }
+QLabel#detailSessionRow { color: #8b8d98; font-size: 12px; }
+QLabel#debitSessionRow  { color: #8b8d98; font-size: 13px; min-width: 70px; }
+QLabel#labelDeconnecte  { color: #5c5f6e; font-size: 13px; }

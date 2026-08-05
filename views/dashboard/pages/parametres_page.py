@@ -51,6 +51,8 @@ class ParametresPage(QWidget):
             ]
         ))
 
+        cl.addWidget(self._section_tarification())
+
         cl.addWidget(self._section_application())
 
         btn = QPushButton("  Sauvegarder les paramètres")
@@ -112,6 +114,60 @@ class ParametresPage(QWidget):
         grille.addLayout(cols[0])
         grille.addLayout(cols[1])
         layout.addLayout(grille)
+
+        return card
+
+    def _section_tarification(self) -> QFrame:
+        from config.settings import TARIFICATION_PRIX_PAR_HEURE, TARIFICATION_DEBIT_DEFAUT_MBPS
+
+        card = QFrame()
+        card.setObjectName("sectionParametres")
+        layout = QVBoxLayout(card)
+        layout.setContentsMargins(20, 16, 20, 20)
+        layout.setSpacing(14)
+
+        header = QHBoxLayout()
+        icone = QLabel()
+        icone.setPixmap(qta.icon("fa5s.tag", color="#5b6ee8").pixmap(14, 14))
+        header.addWidget(icone)
+        header.addSpacing(6)
+        lbl = QLabel("TARIFICATION DES PROFILS")
+        lbl.setObjectName("titreSectionParametres")
+        header.addWidget(lbl)
+        header.addStretch()
+        layout.addLayout(header)
+
+        sep = QFrame()
+        sep.setFrameShape(QFrame.Shape.HLine)
+        sep.setObjectName("separateurSession")
+        layout.addWidget(sep)
+
+        grille = QHBoxLayout()
+        grille.setSpacing(16)
+
+        col1 = QVBoxLayout()
+        col1.setSpacing(4)
+        col1.addWidget(self._label_param("Prix par heure (Ar)"))
+        champ_prix = QLineEdit(str(TARIFICATION_PRIX_PAR_HEURE))
+        champ_prix.setFixedHeight(38)
+        champ_prix.setPlaceholderText("1000")
+        col1.addWidget(champ_prix)
+        grille.addLayout(col1)
+
+        col2 = QVBoxLayout()
+        col2.setSpacing(4)
+        col2.addWidget(self._label_param("Débit par défaut (Mbps)"))
+        champ_debit = QLineEdit(str(TARIFICATION_DEBIT_DEFAUT_MBPS))
+        champ_debit.setFixedHeight(38)
+        champ_debit.setPlaceholderText("2")
+        col2.addWidget(champ_debit)
+        grille.addLayout(col2)
+
+        layout.addLayout(grille)
+
+        lbl_aide = QLabel("Le prix est calculé automatiquement : durée × prix/heure")
+        lbl_aide.setObjectName("descriptionZone")
+        layout.addWidget(lbl_aide)
 
         return card
 

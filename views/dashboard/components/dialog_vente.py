@@ -5,26 +5,60 @@ import qtawesome as qta
 from PyQt6.QtCore import Qt, pyqtSignal
 from PyQt6.QtWidgets import (
     QDialog, QVBoxLayout, QHBoxLayout, QLabel, QPushButton,
-    QComboBox, QFrame, QButtonGroup, QStackedWidget, QWidget,
+    QFrame, QButtonGroup, QStackedWidget, QWidget, QComboBox,
 )
 
+from config.settings import TARIFICATION_PRIX_PAR_HEURE
+from views.dashboard.components.spin_duree import SpinDuree
+
+
+# ── Helpers ───────────────────────────────────────────────────────────────────
 
 def _generer_code() -> str:
-    """Génère un code lisible en évitant les caractères ambigus (O, I, 0, 1)."""
     alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZ"
     chiffres = "23456789"
-    lettres = ''.join(random.choices(alphabet, k=3))
-    nums    = ''.join(random.choices(chiffres, k=4))
-    return f"{lettres}-{nums}"
+    return f"{''.join(random.choices(alphabet, k=3))}-{''.join(random.choices(chiffres, k=4))}"
 
 
 def _generer_password() -> str:
-    chars = string.ascii_lowercase + string.digits
-    return ''.join(random.choices(chars, k=6))
+    return ''.join(random.choices(string.ascii_lowercase + string.digits, k=6))
 
+
+def _fmt_duree(minutes: int) -> str:
+    if minutes >= 1440:
+        j = minutes // 1440
+        h = (minutes % 1440) // 60
+        return f"{j}j{f' {h}h' if h else ''}"
+    if minutes >= 60:
+        h = minutes // 60
+        m = minutes % 60
+        return f"{h}h{f' {m:02d}' if m else ''}"
+    return f"{minutes} min"
+
+
+def _fmt_validite(heures: int) -> str:
+    return f"{heures // 24}j" if heures >= 24 else f"{heures}h"
+
+
+VITESSES = [
+    {"label": "2 Mbps",  "debit_max": 2048},
+    {"label": "5 Mbps",  "debit_max": 5120},
+    {"label": "10 Mbps", "debit_max": 10240},
+]
+
+_METHODES = {
+    "especes":      "Espèces",
+    "mobile_money": "Mobile Money",
+    "carte":        "Carte",
+}
+
+_IDX_PERSO = -1  # sentinel pour l'option personnalisée
+
+
+# ── Dialog principal ──────────────────────────────────────────────────────────
 
 class DialogVente(QDialog):
-    """Dialog 2 étapes : sélection profil/paiement → affichage du ticket généré."""
+    """Dialog 2 étapes : sélection forfait/paiement → ticket généré."""
 
     ticket_vendu = pyqtSignal(dict)
 
@@ -33,35 +67,35 @@ class DialogVente(QDialog):
         self._profils      = profils
         self._vendeur_id   = vendeur_id
         self._methode      = "especes"
-        self._ticket: dict | None = None
+        self._vitesse_idx  = 0
 
         self.setWindowTitle("Vendre un ticket")
         self.setModal(True)
-        self.setFixedSize(500, 530)
+        self.setFixedSize(480, 496)
         self.setObjectName("dialogVente")
 
-        layout = QVBoxLayout(self)
-        layout.setContentsMargins(0, 0, 0, 0)
-        layout.setSpacing(0)
+        outer = QVBoxLayout(self)
+        outer.setContentsMargins(0, 0, 0, 0)
+        outer.setSpacing(0)
 
         self._stacked = QStackedWidget()
         self._stacked.addWidget(self._page_selection())
         self._stacked.addWidget(self._page_resultat())
-        layout.addWidget(self._stacked)
+        outer.addWidget(self._stacked)
 
-    # ── Page 1 : sélection ──────────────────────────────────────────────
+    # ── Page 1 : sélection ───────────────────────────────────────────────────
 
     def _page_selection(self) -> QWidget:
         page = QWidget()
         page.setObjectName("pageDialogVente")
         lay = QVBoxLayout(page)
-        lay.setContentsMargins(28, 26, 28, 26)
-        lay.setSpacing(18)
+        lay.setContentsMargins(26, 22, 26, 18)
+        lay.setSpacing(0)
 
-        # Titre
+        # Header
         h_titre = QHBoxLayout()
         ico = QLabel()
-        ico.setPixmap(qta.icon("fa5s.cash-register", color="#5b6ee8").pixmap(20, 20))
+        ico.setPixmap(qta.icon("fa5s.cash-register", color="#5b6ee8").pixmap(18, 18))
         h_titre.addWidget(ico)
         h_titre.addSpacing(8)
         titre = QLabel("Vendre un ticket")
@@ -69,42 +103,46 @@ class DialogVente(QDialog):
         h_titre.addWidget(titre)
         h_titre.addStretch()
         lay.addLayout(h_titre)
-
+        lay.addSpacing(6)
         lay.addWidget(self._sep())
+        lay.addSpacing(16)
 
-        # Profil
-        lay.addWidget(self._lbl_section("CHOISIR UN PROFIL"))
+        # ── Forfait ──────────────────────────────────────────────────
+        lay.addWidget(self._lbl_section("FORFAIT"))
+        lay.addSpacing(8)
 
         self._combo = QComboBox()
         self._combo.setObjectName("comboParametres")
         self._combo.setFixedHeight(42)
+        self._combo.setCursor(Qt.CursorShape.PointingHandCursor)
+
         for p in self._profils:
-            self._combo.addItem(f"{p['nom']}  —  {int(p['prix'])} Ar", userData=p)
-        self._combo.currentIndexChanged.connect(self._actualiser_detail)
+            self._combo.addItem(
+                f"{p['nom']}  —  {int(p['prix'])} Ar",
+                userData=p,
+            )
+        self._combo.addItem("✏  Personnalisé (durée libre)", userData=None)
+
+        self._combo.currentIndexChanged.connect(self._on_combo_change)
         lay.addWidget(self._combo)
+        lay.addSpacing(10)
 
-        # Carte détail profil
-        self._carte_detail = QFrame()
-        self._carte_detail.setObjectName("carteDetailProfil")
-        cd_lay = QHBoxLayout(self._carte_detail)
-        cd_lay.setContentsMargins(16, 14, 16, 14)
-        cd_lay.setSpacing(0)
+        # Zone de détail (stacked: détail profil / personnalisé)
+        self._zone_detail = QStackedWidget()
+        self._zone_detail.setFixedHeight(90)
+        self._zone_detail.addWidget(self._w_detail_profil())  # 0
+        self._zone_detail.addWidget(self._w_custom())         # 1
+        lay.addWidget(self._zone_detail)
+        lay.addSpacing(14)
+        lay.addWidget(self._sep())
+        lay.addSpacing(12)
 
-        self._d_duree    = self._bloc_info("Durée")
-        self._d_validite = self._bloc_info("Validité")
-        self._d_debit    = self._bloc_info("Débit")
-        self._d_prix     = self._bloc_info("Prix")
-        for b in (self._d_duree, self._d_validite, self._d_debit, self._d_prix):
-            cd_lay.addLayout(b["lay"], stretch=1)
-
-        lay.addWidget(self._carte_detail)
-        self._actualiser_detail(0)
-
-        # Paiement
+        # ── Paiement ─────────────────────────────────────────────────
         lay.addWidget(self._lbl_section("MODE DE PAIEMENT"))
+        lay.addSpacing(8)
 
         h_pay = QHBoxLayout()
-        h_pay.setSpacing(10)
+        h_pay.setSpacing(8)
         self._grp_pay = QButtonGroup(self)
         self._grp_pay.setExclusive(True)
 
@@ -118,7 +156,7 @@ class DialogVente(QDialog):
             btn.setCheckable(True)
             btn.setIcon(qta.icon(icone_id, color="#8b8d98"))
             btn.setProperty("valeur", valeur)
-            btn.setFixedHeight(40)
+            btn.setFixedHeight(38)
             btn.setCursor(Qt.CursorShape.PointingHandCursor)
             self._grp_pay.addButton(btn)
             h_pay.addWidget(btn)
@@ -129,34 +167,114 @@ class DialogVente(QDialog):
         )
         lay.addLayout(h_pay)
         lay.addStretch()
-
         lay.addWidget(self._sep())
+        lay.addSpacing(10)
 
-        # Boutons
+        # ── Boutons ──────────────────────────────────────────────────
         h_act = QHBoxLayout()
         h_act.setSpacing(10)
 
-        btn_annuler = QPushButton("Annuler")
-        btn_annuler.setObjectName("boutonActionHistorique")
-        btn_annuler.setFixedHeight(44)
-        btn_annuler.setCursor(Qt.CursorShape.PointingHandCursor)
-        btn_annuler.clicked.connect(self.reject)
-        h_act.addWidget(btn_annuler)
-
+        btn_ann = QPushButton("Annuler")
+        btn_ann.setObjectName("boutonActionHistorique")
+        btn_ann.setFixedHeight(44)
+        btn_ann.setCursor(Qt.CursorShape.PointingHandCursor)
+        btn_ann.clicked.connect(self.reject)
+        h_act.addWidget(btn_ann)
         h_act.addStretch()
 
-        btn_vendre = QPushButton("  Confirmer la vente")
-        btn_vendre.setObjectName("boutonVendre")
-        btn_vendre.setIcon(qta.icon("fa5s.check", color="#ffffff"))
-        btn_vendre.setFixedHeight(44)
-        btn_vendre.setCursor(Qt.CursorShape.PointingHandCursor)
-        btn_vendre.clicked.connect(self._effectuer_vente)
-        h_act.addWidget(btn_vendre)
+        self._btn_confirmer = QPushButton()
+        self._btn_confirmer.setObjectName("boutonVendre")
+        self._btn_confirmer.setIcon(qta.icon("fa5s.check", color="#ffffff"))
+        self._btn_confirmer.setFixedHeight(44)
+        self._btn_confirmer.setCursor(Qt.CursorShape.PointingHandCursor)
+        self._btn_confirmer.clicked.connect(self._effectuer_vente)
+        h_act.addWidget(self._btn_confirmer)
 
         lay.addLayout(h_act)
+
+        # Initialiser avec le premier item
+        self._on_combo_change(0)
         return page
 
-    # ── Page 2 : ticket généré ─────────────────────────────────────────
+    def _w_detail_profil(self) -> QFrame:
+        """Ligne de détails du profil sélectionné."""
+        w = QFrame()
+        w.setObjectName("carteDetailProfil")
+        lay = QHBoxLayout(w)
+        lay.setContentsMargins(18, 10, 18, 10)
+        lay.setSpacing(0)
+
+        def _col(etiq: str) -> QLabel:
+            col = QVBoxLayout()
+            col.setSpacing(3)
+            e = QLabel(etiq)
+            e.setObjectName("titreSectionSessions")
+            col.addWidget(e)
+            v = QLabel("—")
+            v.setObjectName("valeurDetailProfil")
+            col.addWidget(v)
+            lay.addLayout(col)
+            lay.addSpacing(28)
+            return v
+
+        self._d_duree    = _col("DURÉE")
+        self._d_debit    = _col("DÉBIT")
+        self._d_validite = _col("VALIDITÉ")
+        lay.addStretch()
+        self._d_prix     = _col("PRIX")
+        return w
+
+    def _w_custom(self) -> QFrame:
+        """Configuration personnalisée : vitesse + durée (2 lignes)."""
+        w = QFrame()
+        w.setObjectName("carteDetailProfil")
+        lay = QVBoxLayout(w)
+        lay.setContentsMargins(16, 10, 16, 10)
+        lay.setSpacing(8)
+
+        # ── Ligne 1 : boutons vitesse ─────────────────────────────────
+        h_vit = QHBoxLayout()
+        h_vit.setSpacing(8)
+        self._grp_vitesse = QButtonGroup(self)
+        self._grp_vitesse.setExclusive(True)
+        for i, v in enumerate(VITESSES):
+            btn = QPushButton(v["label"])
+            btn.setObjectName("boutonPaiement")
+            btn.setCheckable(True)
+            btn.setFixedHeight(30)
+            self._grp_vitesse.addButton(btn, i)
+            h_vit.addWidget(btn)
+        h_vit.addStretch()
+        self._grp_vitesse.buttons()[0].setChecked(True)
+        self._grp_vitesse.buttonClicked.connect(
+            lambda b: (
+                setattr(self, "_vitesse_idx", self._grp_vitesse.id(b)),
+                self._maj_prix_perso(),
+            )
+        )
+        lay.addLayout(h_vit)
+
+        # ── Ligne 2 : durée + prix ────────────────────────────────────
+        h_dur = QHBoxLayout()
+        h_dur.setSpacing(10)
+
+        lbl_d = QLabel("Durée :")
+        lbl_d.setObjectName("labelParametre")
+        h_dur.addWidget(lbl_d)
+
+        self._spin_duree = SpinDuree(60)
+        self._spin_duree.changed.connect(lambda _: self._maj_prix_perso())
+        h_dur.addWidget(self._spin_duree, stretch=1)
+
+        self._lbl_prix_perso = QLabel()
+        self._lbl_prix_perso.setObjectName("prixCarteProfil")
+        self._lbl_prix_perso.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
+        h_dur.addWidget(self._lbl_prix_perso)
+
+        lay.addLayout(h_dur)
+        return w
+
+    # ── Page 2 : ticket généré ────────────────────────────────────────────────
 
     def _page_resultat(self) -> QWidget:
         page = QWidget()
@@ -165,47 +283,41 @@ class DialogVente(QDialog):
         lay.setContentsMargins(28, 26, 28, 26)
         lay.setSpacing(16)
 
-        # Badge succès centré
-        self._badge_ok = QLabel("  ✓  Ticket vendu avec succès  ")
-        self._badge_ok.setObjectName("badgeSuccesVente")
-        self._badge_ok.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        lay.addWidget(self._badge_ok)
+        badge = QLabel("  ✓  Ticket vendu avec succès  ")
+        badge.setObjectName("badgeSuccesVente")
+        badge.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        lay.addWidget(badge)
 
-        # Carte ticket
         carte = QFrame()
         carte.setObjectName("carteTicketGenere")
-        ct_lay = QVBoxLayout(carte)
-        ct_lay.setContentsMargins(20, 22, 20, 22)
-        ct_lay.setSpacing(10)
+        ct = QVBoxLayout(carte)
+        ct.setContentsMargins(20, 22, 20, 22)
+        ct.setSpacing(10)
 
         lbl_c = QLabel("CODE D'ACCÈS")
         lbl_c.setObjectName("titreSectionSessions")
         lbl_c.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        ct_lay.addWidget(lbl_c)
+        ct.addWidget(lbl_c)
 
         self._lbl_code = QLabel("———")
         self._lbl_code.setObjectName("codeTicketGenere")
         self._lbl_code.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        ct_lay.addWidget(self._lbl_code)
+        ct.addWidget(self._lbl_code)
 
-        sep_c = QFrame()
-        sep_c.setFrameShape(QFrame.Shape.HLine)
-        sep_c.setObjectName("separateurSession")
-        ct_lay.addWidget(sep_c)
+        ct.addWidget(self._sep())
 
         lbl_p = QLabel("MOT DE PASSE")
         lbl_p.setObjectName("titreSectionSessions")
         lbl_p.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        ct_lay.addWidget(lbl_p)
+        ct.addWidget(lbl_p)
 
         self._lbl_mdp = QLabel("———")
         self._lbl_mdp.setObjectName("passwordTicketGenere")
         self._lbl_mdp.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        ct_lay.addWidget(self._lbl_mdp)
+        ct.addWidget(self._lbl_mdp)
 
         lay.addWidget(carte)
 
-        # Récap
         self._lbl_recap = QLabel()
         self._lbl_recap.setObjectName("recapTicket")
         self._lbl_recap.setAlignment(Qt.AlignmentFlag.AlignCenter)
@@ -214,7 +326,6 @@ class DialogVente(QDialog):
         lay.addStretch()
         lay.addWidget(self._sep())
 
-        # Boutons
         h_act = QHBoxLayout()
         h_act.setSpacing(10)
 
@@ -225,7 +336,6 @@ class DialogVente(QDialog):
         btn_imp.setEnabled(False)
         btn_imp.setToolTip("Impression — bientôt disponible")
         h_act.addWidget(btn_imp)
-
         h_act.addStretch()
 
         btn_nouveau = QPushButton("  Nouveau")
@@ -247,58 +357,87 @@ class DialogVente(QDialog):
         lay.addLayout(h_act)
         return page
 
-    # ── Logique ─────────────────────────────────────────────────────────
+    # ── Logique ───────────────────────────────────────────────────────────────
+
+    def _on_combo_change(self, idx: int):
+        profil = self._combo.itemData(idx)
+        if profil is not None:
+            self._d_duree.setText(_fmt_duree(profil["duree_session_max"]))
+            self._d_debit.setText(f"{profil['debit_max'] // 1024} Mbps")
+            self._d_validite.setText(_fmt_validite(profil["validite"]))
+            self._d_prix.setText(f"{int(profil['prix'])} Ar")
+            self._zone_detail.setCurrentIndex(0)
+            self._btn_confirmer.setText(f"  Confirmer — {int(profil['prix'])} Ar")
+        else:
+            self._zone_detail.setCurrentIndex(1)
+            self._maj_prix_perso()
+
+    def _maj_prix_perso(self):
+        duree_min = self._spin_duree.valeur_minutes
+        prix = round((duree_min / 60) * TARIFICATION_PRIX_PAR_HEURE)
+        self._lbl_prix_perso.setText(f"{int(prix)} Ar")
+        profil = self._combo.currentData()
+        if profil is None:
+            self._btn_confirmer.setText(f"  Confirmer — {int(prix)} Ar")
 
     def _effectuer_vente(self):
-        profil = self._combo.currentData()
-        if not profil:
-            return
-
         code     = _generer_code()
         password = _generer_password()
+        profil   = self._combo.currentData()
 
-        methodes_label = {
-            "especes":      "Espèces",
-            "mobile_money": "Mobile Money",
-            "carte":        "Carte",
-        }
-
-        self._ticket = {
-            "code":      code,
-            "password":  password,
-            "profil":    profil["nom"],
-            "prix":      profil["prix"],
-            "methode":   self._methode,
-            "validite":  profil["validite"],
-        }
+        if profil is not None:
+            ticket = {
+                "code":              code,
+                "password":          password,
+                "profil":            profil["nom"],
+                "profil_id":         profil.get("id"),
+                "debit_max":         profil["debit_max"],
+                "duree_session_max": profil["duree_session_max"],
+                "validite":          profil["validite"],
+                "prix":              profil["prix"],
+                "methode":           self._methode,
+            }
+            recap = (
+                f"{profil['nom']}  ·  {_fmt_duree(profil['duree_session_max'])}  ·  "
+                f"Validité {_fmt_validite(profil['validite'])}  ·  "
+                f"{int(profil['prix'])} Ar  ·  {_METHODES.get(self._methode, '')}"
+            )
+        else:
+            duree_min = self._spin_duree.valeur_minutes
+            prix      = round((duree_min / 60) * TARIFICATION_PRIX_PAR_HEURE)
+            v         = VITESSES[self._vitesse_idx]
+            ticket = {
+                "code":              code,
+                "password":          password,
+                "profil":            f"Perso {v['label']}",
+                "profil_id":         None,
+                "debit_max":         v["debit_max"],
+                "duree_session_max": duree_min,
+                "validite":          24,
+                "prix":              prix,
+                "methode":           self._methode,
+            }
+            recap = (
+                f"Personnalisé {v['label']}  ·  {_fmt_duree(duree_min)}  ·  "
+                f"{int(prix)} Ar  ·  {_METHODES.get(self._methode, '')}"
+            )
 
         self._lbl_code.setText(code)
         self._lbl_mdp.setText(password)
-        self._lbl_recap.setText(
-            f"Profil : {profil['nom']}  ·  "
-            f"Validité : {profil['validite']}h après connexion  ·  "
-            f"{int(profil['prix'])} Ar  ·  {methodes_label.get(self._methode, '')}"
-        )
-
-        self.ticket_vendu.emit(self._ticket)
+        self._lbl_recap.setText(recap)
+        self.ticket_vendu.emit(ticket)
         self._stacked.setCurrentIndex(1)
 
     def _reinitialiser(self):
+        self._combo.setCurrentIndex(0)
+        self._spin_duree.definir_minutes(60)
+        self._grp_vitesse.buttons()[0].setChecked(True)
+        self._vitesse_idx = 0
+        self._grp_pay.buttons()[0].setChecked(True)
+        self._methode = "especes"
         self._stacked.setCurrentIndex(0)
-        self._ticket = None
 
-    def _actualiser_detail(self, index: int):
-        if index < 0 or index >= len(self._profils):
-            return
-        p = self._profils[index]
-        min_tot = p["duree_session_max"]
-        duree = f"{min_tot} min" if min_tot < 60 else f"{min_tot // 60}h"
-        self._d_duree["val"].setText(duree)
-        self._d_validite["val"].setText(f"{p['validite']}h")
-        self._d_debit["val"].setText(f"{p['debit_max'] // 1024} Mbps")
-        self._d_prix["val"].setText(f"{int(p['prix'])} Ar")
-
-    # ── Helpers UI ───────────────────────────────────────────────────────
+    # ── Helpers UI ────────────────────────────────────────────────────────────
 
     @staticmethod
     def _sep() -> QFrame:
@@ -312,17 +451,3 @@ class DialogVente(QDialog):
         l = QLabel(texte)
         l.setObjectName("titreSectionSessions")
         return l
-
-    @staticmethod
-    def _bloc_info(etiquette: str) -> dict:
-        lay = QVBoxLayout()
-        lay.setSpacing(4)
-        lbl_et = QLabel(etiquette)
-        lbl_et.setObjectName("labelParametre")
-        lbl_et.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        lbl_val = QLabel("—")
-        lbl_val.setObjectName("valeurDetailProfil")
-        lbl_val.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        lay.addWidget(lbl_et)
-        lay.addWidget(lbl_val)
-        return {"lay": lay, "val": lbl_val}

@@ -33,6 +33,8 @@ dist/
 .DS_Store
 Thumbs.db
 
+.session.json
+
 .mypy_cache/
 .pytest_cache/
 .ruff_cache/

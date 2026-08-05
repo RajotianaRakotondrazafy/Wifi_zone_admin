@@ -1,10 +1,12 @@
-from pathlib import Path
-
+from PyQt6.QtCore import pyqtSignal
 from PyQt6.QtWidgets import QWidget, QHBoxLayout, QStackedWidget
 
 from controllers.dashboard.dashboard_controller import DashboardController
+from controllers.utilisateurs.utilisateurs_controller import UtilisateursController
 from controllers.ventes.ventes_controller import VentesController
+from controllers.zones.zones_controller import ZonesController
 from models.user import User
+from services.theme import charger_theme
 from views.dashboard.components.sidebar import Sidebar
 from views.dashboard.pages.tableau_de_bord_page import TableauDeBordPage
 from views.dashboard.pages.ventes_page import VentesPage
@@ -15,15 +17,16 @@ from views.dashboard.pages.blocages_page import BlocagesPage
 from views.dashboard.pages.parametres_page import ParametresPage
 
 
-CHEMIN_QSS = Path(__file__).resolve().parent.parent / "assets" / "styles" / "dark_theme.qss"
-
-
 class DashboardView(QWidget):
+    deconnexion_demandee = pyqtSignal()
+
     def __init__(self, current_user: User, dashboard_controller: DashboardController, parent=None):
         super().__init__(parent)
         self._utilisateur        = current_user
         self._controller         = dashboard_controller
         self._ventes_controller  = VentesController()
+        self._zones_controller   = ZonesController()
+        self._utilisateurs_controller = UtilisateursController()
 
         self.setWindowTitle("E-Konnekta — Tableau de bord")
         self.setMinimumSize(1100, 680)
@@ -40,6 +43,7 @@ class DashboardView(QWidget):
         # ── Sidebar ─────────────────────────────────────────────────────
         self._sidebar = Sidebar()
         self._sidebar.item_selectionne.connect(self._naviguer)
+        self._sidebar.deconnexion_demandee.connect(self.deconnexion_demandee.emit)
         layout.addWidget(self._sidebar)
 
         # ── Pages ───────────────────────────────────────────────────────
@@ -49,8 +53,8 @@ class DashboardView(QWidget):
         self._pages: dict[str, QWidget] = {
             "Tableau de bord": TableauDeBordPage(self._controller),
             "Ventes":          VentesPage(self._ventes_controller, self._utilisateur),
-            "Utilisateurs":    UtilisateursPage(),
-            "Zones WiFi":      ZonesWifiPage(),
+            "Utilisateurs":    UtilisateursPage(self._utilisateurs_controller),
+            "Zones WiFi":      ZonesWifiPage(self._zones_controller),
             "Statistiques":    StatistiquesPage(),
             "Blocages":        BlocagesPage(),
             "Paramètres":      ParametresPage(),
@@ -68,8 +72,7 @@ class DashboardView(QWidget):
 
     def _appliquer_theme(self):
         try:
-            with open(CHEMIN_QSS, "r", encoding="utf-8") as f:
-                self.setStyleSheet(f.read())
+            self.setStyleSheet(charger_theme())
         except FileNotFoundError:
             pass
 

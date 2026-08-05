@@ -19,7 +19,7 @@ class AuthController:
         except RuntimeError:
             return None
 
-        if user is None:
+        if user is None or not user.actif:
             return None
 
         mot_de_passe_valide = bcrypt.checkpw(

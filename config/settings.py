@@ -17,3 +17,8 @@ MIKROTIK_PORT = int(os.getenv("MIKROTIK_PORT"))
 
 MIKROTIK_USER = os.getenv("MIKROTIK_USER")
 MIKROTIK_PASSWORD = os.getenv("MIKROTIK_PASSWORD")
+
+# Tarification : prix par heure en Ariary
+TARIFICATION_PRIX_PAR_HEURE = int(os.getenv("TARIFICATION_PRIX_PAR_HEURE", "1000"))
+# Débit par défaut en Mbps
+TARIFICATION_DEBIT_DEFAUT_MBPS = int(os.getenv("TARIFICATION_DEBIT_DEFAUT_MBPS", "2"))

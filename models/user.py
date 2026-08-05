@@ -18,6 +18,8 @@ class User:
     # Hash bcrypt ou similaire — jamais le mot de passe en clair
     mot_de_passe_hash: str
     role: RoleUtilisateur = RoleUtilisateur.CAISSIER
+    # False → connexion refusée (compte désactivé)
+    actif: bool = True
     id: Optional[int] = None
 
     def to_dict(self) -> dict:
@@ -27,6 +29,7 @@ class User:
             "login": self.login,
             "mot_de_passe_hash": self.mot_de_passe_hash,
             "role": self.role.value if isinstance(self.role, RoleUtilisateur) else self.role,
+            "actif": self.actif,
         }
 
     @classmethod
@@ -37,4 +40,5 @@ class User:
             login=data["login"],
             mot_de_passe_hash=data["mot_de_passe_hash"],
             role=RoleUtilisateur(data.get("role", RoleUtilisateur.CAISSIER.value)),
+            actif=bool(data.get("actif", True)),
         )

@@ -5,3 +5,5 @@ routeros-api
 python-dotenv
 bcrypt
 qtawesome
+watchdog
+routeros_api
