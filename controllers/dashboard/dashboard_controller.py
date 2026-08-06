@@ -54,6 +54,12 @@ class DashboardController:
             self._echec_ts = time.monotonic()
         return ok
 
+    def bloquer_session(self, session_id: str) -> bool:
+        return self._mikrotik.bloquer_session(session_id)
+
+    def limiter_session(self, adresse_ip: str, debit_ko: int) -> bool:
+        return self._mikrotik.limiter_session(adresse_ip, debit_ko)
+
     def obtenir_donnees_dashboard(self) -> dict[str, Any]:
         """Retourne un snapshot en temps réel depuis le MikroTik actif."""
         if not self._mikrotik.connecte:

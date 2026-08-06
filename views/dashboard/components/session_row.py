@@ -1,5 +1,5 @@
 import qtawesome as qta
-from PyQt6.QtCore import Qt
+from PyQt6.QtCore import Qt, pyqtSignal
 from PyQt6.QtGui import QColor, QPainter, QBrush
 from PyQt6.QtWidgets import (
     QWidget, QHBoxLayout, QVBoxLayout, QLabel, QPushButton
@@ -11,6 +11,14 @@ _COULEURS_AVATAR = [
     "#5b6ee8", "#e85b6e", "#6ee85b", "#e8c45b",
     "#5be8d4", "#c45be8", "#e8825b", "#5b9ee8",
 ]
+
+
+def _formater_debit(octets_par_sec: float) -> tuple[str, str]:
+    if octets_par_sec >= 1_000_000:
+        return f"{octets_par_sec / 1_000_000:.1f}", "Mo/s"
+    if octets_par_sec >= 1_000:
+        return f"{octets_par_sec / 1_000:.0f}", "Ko/s"
+    return f"{octets_par_sec:.0f}", "o/s"
 
 
 def _couleur_pour(cle: str) -> str:
@@ -53,15 +61,21 @@ class AvatarCirculaire(QWidget):
 class SessionRow(QWidget):
     """Ligne représentant une session active dans la liste du tableau de bord."""
 
+    limiter_demande    = pyqtSignal(dict)
+    bloquer_demande    = pyqtSignal(dict)
+    identifier_demande = pyqtSignal(dict)
+
     def __init__(self, donnees: dict, parent=None):
         super().__init__(parent)
         self.setObjectName("sessionRow")
 
-        nom = donnees.get("nom_appareil", "Inconnu")
-        mac = donnees.get("mac_address", "")
+        nom           = donnees.get("nom_appareil", "Inconnu")
+        nom_hote      = donnees.get("nom_hote", "")
+        mac           = donnees.get("mac_address", "")
         type_appareil = donnees.get("type_appareil", "")
-        debit = donnees.get("debit_actuel", 0)
-        est_connecte: bool = donnees.get("est_connecte", False)
+        debit_down    = donnees.get("debit_down", 0.0)
+        debit_up      = donnees.get("debit_up",   0.0)
+        est_connecte:  bool = donnees.get("est_connecte", False)
         est_identifie: bool = donnees.get("est_identifie", False)
 
         layout = QHBoxLayout(self)
@@ -87,7 +101,10 @@ class SessionRow(QWidget):
         bloc_texte.setSpacing(2)
 
         nom_affiche = nom if (est_identifie or nom not in ("Inconnu", "")) else "Inconnu"
-        label_nom = QLabel(nom_affiche)
+        # Ligne principale : "admin  –  A41 de Rajotiana" ou "admin  –  Appareil inconnu"
+        nom_hote_affiche = nom_hote.replace("-", " ") if nom_hote else "Appareil inconnu"
+        ligne_nom = f"{nom_affiche}  –  {nom_hote_affiche}"
+        label_nom = QLabel(ligne_nom)
         label_nom.setObjectName("nomSessionRow")
         bloc_texte.addWidget(label_nom)
 
@@ -101,28 +118,41 @@ class SessionRow(QWidget):
 
         # --- Débit actuel (uniquement si connecté) ---
         if est_connecte:
-            conteneur_debit = QHBoxLayout()
-            conteneur_debit.setSpacing(4)
+            conteneur_debit = QVBoxLayout()
+            conteneur_debit.setSpacing(2)
 
-            icone_debit = QLabel()
-            icone_debit.setPixmap(
-                qta.icon("fa5s.arrow-down", color="#8b8d98").pixmap(12, 12)
-            )
-            conteneur_debit.addWidget(icone_debit)
-
-            label_debit = QLabel(f"{debit} Mb/s")
-            label_debit.setObjectName("debitSessionRow")
-            conteneur_debit.addWidget(label_debit)
+            for icone_nom, couleur, valeur in (
+                ("fa5s.arrow-down", "#4ade80", debit_down),
+                ("fa5s.arrow-up",   "#60a5fa", debit_up),
+            ):
+                ligne = QHBoxLayout()
+                ligne.setSpacing(4)
+                icone = QLabel()
+                icone.setPixmap(qta.icon(icone_nom, color=couleur).pixmap(10, 10))
+                ligne.addWidget(icone)
+                val, unit = _formater_debit(valeur)
+                lbl = QLabel(f"{val} {unit}")
+                lbl.setObjectName("debitSessionRow")
+                ligne.addWidget(lbl)
+                conteneur_debit.addLayout(ligne)
 
             layout.addLayout(conteneur_debit)
 
         # --- Boutons d'action ---
         if est_connecte and est_identifie:
-            layout.addWidget(self._bouton("Limiter", "boutonActionLimiter"))
-            layout.addWidget(self._bouton("Bloquer", "boutonActionBloquer"))
+            btn_limiter = self._bouton("Limiter", "boutonActionLimiter")
+            btn_limiter.clicked.connect(lambda: self.limiter_demande.emit(donnees))
+            btn_bloquer = self._bouton("Bloquer", "boutonActionBloquer")
+            btn_bloquer.clicked.connect(lambda: self.bloquer_demande.emit(donnees))
+            layout.addWidget(btn_limiter)
+            layout.addWidget(btn_bloquer)
         elif est_connecte and not est_identifie:
-            layout.addWidget(self._bouton("Identifier", "boutonActionIdentifier"))
-            layout.addWidget(self._bouton("Bloquer", "boutonActionBloquer"))
+            btn_id = self._bouton("Identifier", "boutonActionIdentifier")
+            btn_id.clicked.connect(lambda: self.identifier_demande.emit(donnees))
+            btn_bloquer = self._bouton("Bloquer", "boutonActionBloquer")
+            btn_bloquer.clicked.connect(lambda: self.bloquer_demande.emit(donnees))
+            layout.addWidget(btn_id)
+            layout.addWidget(btn_bloquer)
         else:
             label_deconnecte = QLabel("déconnecté")
             label_deconnecte.setObjectName("labelDeconnecte")

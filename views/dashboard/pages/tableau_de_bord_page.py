@@ -1,12 +1,23 @@
 from PyQt6.QtCore import Qt, QTimer
 from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel, QFrame, QScrollArea,
+    QMessageBox,
 )
 
 from controllers.dashboard.dashboard_controller import DashboardController
 from services.mikrotik_worker import WorkerDashboard
 from views.dashboard.components.stat_card import StatCard
 from views.dashboard.components.session_row import SessionRow
+from views.dashboard.components.dialog_limiter import DialogLimiter
+
+
+def _formater_debit(octets_par_sec: float) -> tuple[str, str]:
+    """Retourne (valeur_formatée, unité) selon la magnitude du débit en octets/s."""
+    if octets_par_sec >= 1_000_000:
+        return f"{octets_par_sec / 1_000_000:.1f}", "Mo/s"
+    if octets_par_sec >= 1_000:
+        return f"{octets_par_sec / 1_000:.0f}", "Ko/s"
+    return f"{octets_par_sec:.0f}", "o/s"
 
 
 class TableauDeBordPage(QWidget):
@@ -66,8 +77,8 @@ class TableauDeBordPage(QWidget):
         r = QHBoxLayout()
         r.setSpacing(16)
         self._card_appareils  = StatCard("fa5s.laptop",     "Appareils connectés", "—",   "en ligne")
-        self._card_debit_down = StatCard("fa5s.arrow-down", "Débit descendant",    "—",   "Mb/s")
-        self._card_debit_up   = StatCard("fa5s.arrow-up",   "Débit montant",       "—",   "Mb/s")
+        self._card_debit_down = StatCard("fa5s.arrow-down", "Débit descendant",    "—",   "")
+        self._card_debit_up   = StatCard("fa5s.arrow-up",   "Débit montant",       "—",   "")
         self._card_latence    = StatCard("fa5s.signal",      "Latence",             "—",   "ms")
         for c in (self._card_appareils, self._card_debit_down, self._card_debit_up, self._card_latence):
             r.addWidget(c)
@@ -132,14 +143,18 @@ class TableauDeBordPage(QWidget):
         self._card_appareils.mettre_a_jour(str(nb) if connecte else "—", "en ligne")
 
         down = stats.get("debit_descendant", 0.0)
-        self._card_debit_down.mettre_a_jour(
-            f"{down}" if connecte else "—", "Mb/s"
-        )
+        if connecte:
+            val_d, unit_d = _formater_debit(down)
+            self._card_debit_down.mettre_a_jour(val_d, unit_d)
+        else:
+            self._card_debit_down.mettre_a_jour("—", "")
 
         up = stats.get("debit_montant", 0.0)
-        self._card_debit_up.mettre_a_jour(
-            f"{up}" if connecte else "—", "Mb/s"
-        )
+        if connecte:
+            val_u, unit_u = _formater_debit(up)
+            self._card_debit_up.mettre_a_jour(val_u, unit_u)
+        else:
+            self._card_debit_up.mettre_a_jour("—", "")
 
         lat = stats.get("latence", -1)
         if connecte and lat >= 0:
@@ -176,6 +191,48 @@ class TableauDeBordPage(QWidget):
                 self._layout_sessions.insertWidget(
                     self._layout_sessions.count() - 1, sep
                 )
+            row = SessionRow(session)
+            row.limiter_demande.connect(self._on_limiter)
+            row.bloquer_demande.connect(self._on_bloquer)
             self._layout_sessions.insertWidget(
-                self._layout_sessions.count() - 1, SessionRow(session)
+                self._layout_sessions.count() - 1, row
+            )
+
+    # ── Actions session ──────────────────────────────────────────────
+
+    def _on_limiter(self, donnees: dict):
+        nom = donnees.get("nom_appareil", "Inconnu")
+        ip  = donnees.get("adresse_ip", "")
+        dlg = DialogLimiter(nom, parent=self)
+        if dlg.exec() != DialogLimiter.DialogCode.Accepted:
+            return
+        ok = self._controller.limiter_session(ip, dlg.debit_ko())
+        if ok:
+            QMessageBox.information(
+                self, "Limite appliquée",
+                f"Limite de {dlg.debit_ko()} Ko/s appliquée à {nom}."
+            )
+        else:
+            QMessageBox.warning(
+                self, "Erreur",
+                f"Impossible d'appliquer la limite pour {nom}.\n"
+                "Vérifiez la connexion au routeur."
+            )
+
+    def _on_bloquer(self, donnees: dict):
+        nom        = donnees.get("nom_appareil", "Inconnu")
+        session_id = donnees.get("session_id", "")
+        rep = QMessageBox.question(
+            self, "Bloquer l'appareil",
+            f"Déconnecter <b>{nom}</b> du réseau ?",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+        )
+        if rep != QMessageBox.StandardButton.Yes:
+            return
+        ok = self._controller.bloquer_session(session_id)
+        if not ok:
+            QMessageBox.warning(
+                self, "Erreur",
+                f"Impossible de déconnecter {nom}.\n"
+                "Vérifiez la connexion au routeur."
             )

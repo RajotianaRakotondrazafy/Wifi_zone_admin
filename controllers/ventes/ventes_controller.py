@@ -1,6 +1,9 @@
+import logging
 from datetime import datetime, timedelta
 
 from models.ticket import Ticket
+
+logger = logging.getLogger(__name__)
 from models.sale import Sale
 from models.hotspot_profile import HotspotProfile
 from repositories.hotspot_profile_repository import HotspotProfileRepository
@@ -9,7 +12,12 @@ from repositories.sale_repository import SaleRepository
 from repositories.router_repository import RouterRepository
 from services.mikrotik_service import MikroTikErreur, MikroTikService
 
-from config.settings import TARIFICATION_DEBIT_DEFAUT_MBPS
+from config.settings import (
+    TARIFICATION_DEBIT_DEFAUT_MBPS,
+    TARIFICATION_LIBRE_MIN_AR,
+    TARIFICATION_LIBRE_MIN_MIN,
+    TARIFICATION_PRIX_PAR_HEURE,
+)
 
 
 class VentesController:
@@ -43,23 +51,90 @@ class VentesController:
                 premiere = datetime.fromisoformat(premiere)
             demarre = premiere is not None
 
-            # Le compte à rebours démarre uniquement à la première connexion
-            expiration_dt = premiere + timedelta(minutes=duree_min) if demarre else None
-
-            ventes.append({
-                "heure_dt":        heure_dt,
-                "heure":           heure_dt.strftime("%H:%M"),
-                "profil":          v["profil_nom"],
-                "profil_duree_min": duree_min,
-                "code":            v["code"],
-                "methode":         v["methode_paiement"],
-                "montant":         v["montant"],
-                "demarre":         demarre,
-                "expiration_dt":   expiration_dt,
-                "actif":           not demarre or expiration_dt > now,
-            })
+            if duree_min == 0:
+                # Session libre : active jusqu'à clôture (statut 'epuise')
+                est_cloturee = v.get("statut") in ("epuise", "expire")
+                ventes.append({
+                    "heure_dt":             heure_dt,
+                    "heure":                heure_dt.strftime("%H:%M"),
+                    "profil":               v["profil_nom"],
+                    "profil_duree_min":     0,
+                    "code":                 v["code"],
+                    "methode":              v["methode_paiement"],
+                    "montant":              v["montant"],
+                    "demarre":              demarre,
+                    "premiere_connexion_dt": premiere,
+                    "expiration_dt":        None,
+                    "actif":                not est_cloturee,
+                    "libre":                not est_cloturee,
+                })
+            else:
+                expiration_dt = premiere + timedelta(minutes=duree_min) if demarre else None
+                ventes.append({
+                    "heure_dt":             heure_dt,
+                    "heure":                heure_dt.strftime("%H:%M"),
+                    "profil":               v["profil_nom"],
+                    "profil_duree_min":     duree_min,
+                    "code":                 v["code"],
+                    "methode":              v["methode_paiement"],
+                    "montant":              v["montant"],
+                    "demarre":              demarre,
+                    "premiere_connexion_dt": premiere,
+                    "expiration_dt":        expiration_dt,
+                    "actif":                not demarre or (expiration_dt is not None and expiration_dt > now),
+                    "libre":                False,
+                })
 
         return ventes
+
+    @staticmethod
+    def calculer_cout_libre(uptime_sec: float) -> int:
+        """Calcule le coût d'une session libre selon la durée effective."""
+        minutes = uptime_sec / 60
+        if minutes < TARIFICATION_LIBRE_MIN_MIN:
+            return TARIFICATION_LIBRE_MIN_AR
+        return round((minutes / 60) * TARIFICATION_PRIX_PAR_HEURE)
+
+    def cloture_session_libre(
+        self,
+        code: str,
+        uptime_sec: float,
+        montant: int,
+        methode: str,
+    ) -> dict:
+        try:
+            # Mise à jour du montant + statut en DB
+            ticket = self._ticket_repo.get_ticket_by_code(code)
+            if ticket:
+                self._sale_repo.update_montant(ticket.id, montant)
+                self._ticket_repo.marquer_cloture(ticket.id)
+
+            # Déconnexion MikroTik
+            try:
+                router_id = self._router_id_par_defaut()
+            except RuntimeError:
+                return {"ok": True, "message": "Montant enregistré (routeur non disponible)."}
+
+            routeur = self._router_repo.obtenir_par_id(router_id)
+            if not (routeur and routeur.adresse_ip and routeur.username and routeur.password_chiffre):
+                return {"ok": True, "message": "Montant enregistré (routeur non configuré)."}
+
+            svc = MikroTikService()
+            try:
+                connecte = svc.connecter_routeur(
+                    routeur.adresse_ip, routeur.username,
+                    routeur.password_chiffre, routeur.port_api,
+                )
+                logger.info("cloture_session_libre(%s) : connexion routeur = %s", code, connecte)
+                if connecte:
+                    ok_deconnect = svc.deconnecter_par_username(code)
+                    logger.info("cloture_session_libre(%s) : deconnexion = %s", code, ok_deconnect)
+            finally:
+                svc.deconnecter()
+
+            return {"ok": True, "message": f"Session {code} clôturée — {montant} Ar."}
+        except Exception as exc:
+            return {"ok": False, "message": str(exc)}
 
     def detecter_premieres_connexions(self) -> dict:
         tickets = self._ticket_repo.lister_sans_premiere_connexion()
@@ -123,14 +198,10 @@ class VentesController:
         if router_id is None:
             router_id = self._router_id_par_defaut()
 
-        profils = self._profile_repo.lister_tous(actif_seulement=True)
         if nom is not None:
-            for p in profils:
+            for p in self._profile_repo.lister_tous(actif_seulement=True):
                 if p.nom == nom and p.debit_max == debit_max:
                     return p.id
-        for p in profils:
-            if p.debit_max == debit_max:
-                return p.id
 
         nouveau = HotspotProfile(
             router_id=router_id,
@@ -237,6 +308,29 @@ class VentesController:
                 svc.deconnecter()
         except Exception as exc:
             return {"ok": False, "message": f"Erreur inattendue : {exc}"}
+
+    def obtenir_temps_restants_mikrotik(self) -> dict[str, int]:
+        try:
+            router_id = self._router_id_par_defaut()
+        except RuntimeError:
+            return {}
+
+        routeur = self._router_repo.obtenir_par_id(router_id)
+        if not (routeur and routeur.adresse_ip and routeur.username and routeur.password_chiffre):
+            return {}
+
+        svc = MikroTikService()
+        try:
+            if not svc.connecter_routeur(
+                routeur.adresse_ip, routeur.username,
+                routeur.password_chiffre, routeur.port_api,
+            ):
+                return {}
+            return svc.obtenir_temps_restants_sessions()
+        except Exception:
+            return {}
+        finally:
+            svc.deconnecter()
 
     def total_du_jour(self) -> dict:
         return self._sale_repo.agreger_par_date(datetime.now().date().isoformat())

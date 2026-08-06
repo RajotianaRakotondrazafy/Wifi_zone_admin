@@ -5,6 +5,7 @@ from PyQt6.QtCore import QThread, Qt, QTimer, pyqtSignal
 from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton,
     QFrame, QScrollArea, QProgressBar, QMessageBox,
+    QDialog, QComboBox, QDialogButtonBox,
 )
 
 from controllers.ventes.ventes_controller import VentesController
@@ -48,6 +49,25 @@ class DetectionConnexionsThread(QThread):
         self.terminee.emit(resultat)
 
 
+class WorkerTempsRestants(QThread):
+    """Récupère session-time-left depuis MikroTik en arrière-plan."""
+
+    donnees_prete = pyqtSignal(dict)   # {username: secondes_restantes}
+
+    def __init__(self, controller: VentesController, parent=None):
+        super().__init__(parent)
+        self._controller = controller
+
+    def run(self):
+        try:
+            donnees = self._controller.obtenir_temps_restants_mikrotik()
+        except Exception:
+            donnees = {}
+        self.donnees_prete.emit(donnees)
+
+
+from config.settings import TARIFICATION_LIBRE_MIN_AR, TARIFICATION_LIBRE_MIN_MIN
+
 _LABELS_METHODE = {
     "especes":      ("Espèces",      "badgeActif"),
     "mobile_money": ("Mobile Money", "badgeCaissier"),
@@ -69,6 +89,7 @@ class LigneTicketActif(QWidget):
         super().__init__(parent)
         self.setObjectName("ligneTicketActif")
 
+        self._code             = vente["code"]
         self._expiration_dt    = vente["expiration_dt"]
         self._duree_totale_sec = vente["profil_duree_min"] * 60.0
         self._demarre          = bool(vente.get("demarre", True))
@@ -142,6 +163,12 @@ class LigneTicketActif(QWidget):
 
         self.actualiser()
 
+    def sync_mikrotik(self, secondes_restantes: int):
+        """Synchronise l'expiration depuis la valeur exacte de MikroTik."""
+        from datetime import timedelta
+        self._expiration_dt = datetime.now() + timedelta(seconds=secondes_restantes)
+        self._demarre = True
+
     def actualiser(self):
         """Recalcule et affiche le temps restant. Appelé chaque seconde."""
         now = datetime.now()
@@ -207,6 +234,99 @@ class LigneTicketActif(QWidget):
         l = QLabel("·")
         l.setObjectName("labelHeure")
         return l
+
+
+# ── Widget : session libre (paiement à la fin) ───────────────────────────────
+
+class LigneTicketLibre(QWidget):
+    """Ligne d'une session sans durée fixe — affiche le temps écoulé + bouton Clôturer."""
+
+    cloture_demande = pyqtSignal(dict)   # émet le dict vente complet
+
+    def __init__(self, vente: dict, parent=None):
+        super().__init__(parent)
+        self.setObjectName("ligneTicketActif")
+
+        self._vente   = vente
+        self._premiere: datetime | None = vente.get("premiere_connexion_dt")
+        self._demarre  = bool(vente.get("demarre", False))
+
+        lay = QVBoxLayout(self)
+        lay.setContentsMargins(20, 16, 20, 14)
+        lay.setSpacing(10)
+
+        h_top = QHBoxLayout()
+        h_top.setSpacing(12)
+
+        self._dot = QLabel()
+        self._dot.setFixedSize(10, 10)
+        h_top.addWidget(self._dot)
+
+        lbl_code = QLabel(vente["code"])
+        lbl_code.setObjectName("codeTicketActif")
+        h_top.addWidget(lbl_code)
+
+        sep = QLabel("·")
+        sep.setObjectName("labelHeure")
+        h_top.addWidget(sep)
+
+        lbl_profil = QLabel(vente["profil"])
+        lbl_profil.setObjectName("nomUtilisateur")
+        h_top.addWidget(lbl_profil)
+
+        badge_libre = QLabel("∞ Libre")
+        badge_libre.setObjectName("badgeCaissier")
+        badge_libre.setFixedWidth(62)
+        badge_libre.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        h_top.addWidget(badge_libre)
+
+        h_top.addStretch()
+
+        self._lbl_temps = QLabel("En attente…")
+        self._lbl_temps.setFixedWidth(160)
+        self._lbl_temps.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
+        h_top.addWidget(self._lbl_temps)
+
+        lay.addLayout(h_top)
+
+        # ── Ligne bas : info tarif + bouton ───────────────────────────
+        h_bot = QHBoxLayout()
+        h_bot.addSpacing(22)
+
+        lbl_tarif = QLabel(
+            f"{TARIFICATION_LIBRE_MIN_AR} Ar min. pour <{TARIFICATION_LIBRE_MIN_MIN} min"
+        )
+        lbl_tarif.setObjectName("detailSessionRow")
+        h_bot.addWidget(lbl_tarif)
+        h_bot.addStretch()
+
+        btn = QPushButton("Clôturer & Facturer")
+        btn.setObjectName("boutonActionLimiter")
+        btn.setFixedHeight(30)
+        btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        btn.clicked.connect(lambda: self.cloture_demande.emit(self._vente))
+        h_bot.addWidget(btn)
+        lay.addLayout(h_bot)
+
+        self.actualiser()
+
+    def actualiser(self):
+        if not self._demarre or self._premiere is None:
+            self._dot.setStyleSheet("background-color:#5c5f6e;border-radius:5px;")
+            self._lbl_temps.setText("En attente de connexion")
+            self._lbl_temps.setStyleSheet("color:#5c5f6e;font-size:13px;font-weight:bold;")
+            return
+
+        self._dot.setStyleSheet("background-color:#60a5fa;border-radius:5px;")
+        ecoul = (datetime.now() - self._premiere).total_seconds()
+        h = int(ecoul // 3600)
+        m = int((ecoul % 3600) // 60)
+        s = int(ecoul % 60)
+        texte = f"{h}h {m:02d}m {s:02d}s" if h else (
+            f"{m}min {s:02d}s" if m else f"{s}s"
+        )
+        self._lbl_temps.setText(f"⏱ {texte}")
+        self._lbl_temps.setStyleSheet("color:#60a5fa;font-size:13px;font-weight:bold;")
 
 
 # ── Widget : ligne de l'historique ──────────────────────────────────────────
@@ -279,9 +399,11 @@ class VentesPage(QWidget):
         super().__init__(parent)
         self._controller   = ventes_controller
         self._current_user = current_user
-        self._lignes_actives: list[LigneTicketActif] = []
+        self._lignes_actives: dict[str, LigneTicketActif] = {}   # code → widget minuté
+        self._lignes_libres:  dict[str, LigneTicketLibre] = {}   # code → widget libre
         self._synchro_thread: SynchronisationMikrotikThread | None = None
         self._detection_thread: DetectionConnexionsThread | None = None
+        self._worker_temps: WorkerTempsRestants | None = None
 
         self._construire_interface()
 
@@ -302,6 +424,12 @@ class VentesPage(QWidget):
         self._timer_detection.setInterval(30_000)
         self._timer_detection.timeout.connect(self._lancer_detection)
         self._timer_detection.start()
+
+        # Timer 15 s : synchronisation des temps restants depuis MikroTik
+        self._timer_temps = QTimer(self)
+        self._timer_temps.setInterval(15_000)
+        self._timer_temps.timeout.connect(self._lancer_sync_temps)
+        self._timer_temps.start()
 
         self.rafraichir_donnees()
 
@@ -419,27 +547,40 @@ class VentesPage(QWidget):
         self._stat_actifs.mettre_a_jour(str(totaux["nb_actifs"]))
         self._badge_ca.setText(f"  Aujourd'hui : {int(totaux['ca_total'])} Ar  ")
 
-        actifs = [v for v in ventes if v["actif"]]
+        actifs  = [v for v in ventes if v["actif"] and not v.get("libre")]
+        libres  = [v for v in ventes if v["actif"] and v.get("libre")]
+        tous_actifs = actifs + libres
 
-        self._titre_actifs.setText(f"TICKETS EN COURS  ·  {len(actifs)}")
+        self._titre_actifs.setText(f"TICKETS EN COURS  ·  {len(tous_actifs)}")
         self._titre_historique.setText(f"HISTORIQUE DU JOUR  ·  {len(ventes)}")
 
         # Reconstruire section "actifs"
         self._vider_layout(self._lay_actifs)
         self._lignes_actives.clear()
+        self._lignes_libres.clear()
 
-        if not actifs:
+        if not tous_actifs:
             lbl = QLabel("Aucun ticket actif en ce moment.")
             lbl.setObjectName("loginUtilisateur")
             lbl.setContentsMargins(20, 14, 20, 14)
             self._lay_actifs.addWidget(lbl)
         else:
-            for i, v in enumerate(actifs):
-                if i > 0:
+            premiere = True
+            for v in actifs:
+                if not premiere:
                     self._lay_actifs.addWidget(_sep())
+                premiere = False
                 row = LigneTicketActif(v)
                 self._lay_actifs.addWidget(row)
-                self._lignes_actives.append(row)
+                self._lignes_actives[v["code"]] = row
+            for v in libres:
+                if not premiere:
+                    self._lay_actifs.addWidget(_sep())
+                premiere = False
+                row = LigneTicketLibre(v)
+                row.cloture_demande.connect(self._on_cloture)
+                self._lay_actifs.addWidget(row)
+                self._lignes_libres[v["code"]] = row
 
         # Reconstruire section "historique"
         self._vider_layout(self._lay_hist)
@@ -457,8 +598,26 @@ class VentesPage(QWidget):
 
     def _tick_secondes(self):
         """Mise à jour des countdowns (toutes les secondes, sans recréer de widgets)."""
-        for row in self._lignes_actives:
+        for row in self._lignes_actives.values():
             row.actualiser()
+        for row in self._lignes_libres.values():
+            row.actualiser()
+
+    def _lancer_sync_temps(self):
+        """Récupère session-time-left depuis MikroTik en arrière-plan."""
+        if self._worker_temps and self._worker_temps.isRunning():
+            return
+        if not self._lignes_actives:
+            return
+        self._worker_temps = WorkerTempsRestants(self._controller, self)
+        self._worker_temps.donnees_prete.connect(self._on_temps_restants)
+        self._worker_temps.start()
+
+    def _on_temps_restants(self, donnees: dict):
+        """Applique les temps exacts reçus de MikroTik à chaque ligne active."""
+        for code, secondes in donnees.items():
+            if code in self._lignes_actives:
+                self._lignes_actives[code].sync_mikrotik(secondes)
 
     # ── Actions ──────────────────────────────────────────────────────────
 
@@ -504,6 +663,69 @@ class VentesPage(QWidget):
                 "Le client ne pourra pas se connecter tant que le ticket ne sera pas créé "
                 "sur le routeur (Zones WiFi → Configurer, ou IP → Hotspot → Users).",
             )
+
+    def _on_cloture(self, vente: dict):
+        """Affiche le dialog de clôture pour une session libre."""
+        premiere = vente.get("premiere_connexion_dt")
+        if premiere is None:
+            uptime_sec = 0.0
+        else:
+            uptime_sec = max(0.0, (datetime.now() - premiere).total_seconds())
+
+        montant = self._controller.calculer_cout_libre(uptime_sec)
+
+        h = int(uptime_sec // 3600)
+        m = int((uptime_sec % 3600) // 60)
+        s = int(uptime_sec % 60)
+        if h:
+            texte_duree = f"{h}h {m:02d}m {s:02d}s"
+        elif m:
+            texte_duree = f"{m}min {s:02d}s"
+        else:
+            texte_duree = f"{s}s"
+
+        dlg = QDialog(self)
+        dlg.setWindowTitle("Clôturer la session libre")
+        dlg.setFixedWidth(360)
+        lay = QVBoxLayout(dlg)
+        lay.setSpacing(14)
+        lay.setContentsMargins(24, 20, 24, 20)
+
+        lay.addWidget(QLabel(f"<b>Code :</b> {vente['code']}"))
+        lay.addWidget(QLabel(f"<b>Durée :</b> {texte_duree if uptime_sec else 'Non démarrée'}"))
+        lay.addWidget(QLabel(f"<b>Montant à facturer :</b> {montant} Ar"))
+
+        lbl_m = QLabel("Méthode de paiement :")
+        lay.addWidget(lbl_m)
+        combo = QComboBox()
+        combo.addItem("Espèces",      "especes")
+        combo.addItem("Mobile Money", "mobile_money")
+        combo.addItem("Carte",        "carte")
+        lay.addWidget(combo)
+
+        btns = QDialogButtonBox(
+            QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel
+        )
+        btns.button(QDialogButtonBox.StandardButton.Ok).setText("Confirmer & Clôturer")
+        btns.accepted.connect(dlg.accept)
+        btns.rejected.connect(dlg.reject)
+        lay.addWidget(btns)
+
+        if dlg.exec() != QDialog.DialogCode.Accepted:
+            return
+
+        methode = combo.currentData()
+
+        resultat = self._controller.cloture_session_libre(
+            vente["code"], uptime_sec, montant, methode
+        )
+
+        if resultat.get("ok"):
+            QMessageBox.information(self, "Session clôturée", resultat["message"])
+        else:
+            QMessageBox.warning(self, "Erreur clôture", resultat.get("message", "Erreur inconnue."))
+
+        self.rafraichir_donnees()
 
     def _lancer_detection(self):
         """Détecte les premières connexions en arrière-plan (routeur)."""

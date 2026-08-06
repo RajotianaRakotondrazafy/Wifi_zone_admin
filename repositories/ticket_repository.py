@@ -110,6 +110,19 @@ class TicketRepository:
             raise RuntimeError(f"Erreur lors de l'enregistrement de la première connexion : {e}")
         
     
+    def marquer_cloture(self, ticket_id: int):
+        """Passe le statut du ticket à 'epuise' (session libre clôturée)."""
+        try:
+            cursor = self._conn.cursor()
+            cursor.execute(
+                "UPDATE tickets SET statut = 'epuise' WHERE id = ?",
+                (ticket_id,),
+            )
+            self._conn.commit()
+        except sqlite3.Error as e:
+            self._conn.rollback()
+            raise RuntimeError(f"Erreur clôture ticket : {e}")
+
     def update_ticket(self, ticket: Ticket) -> bool:
         if ticket.id is None:
             raise ValueError("Impossible de mettre à jour un ticket sans id.")

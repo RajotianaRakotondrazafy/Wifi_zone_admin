@@ -8,16 +8,19 @@ from PyQt6.QtWidgets import (
     QFrame, QButtonGroup, QStackedWidget, QWidget, QComboBox,
 )
 
-from config.settings import TARIFICATION_PRIX_PAR_HEURE
+from config.settings import (
+    TARIFICATION_PRIX_PAR_HEURE,
+    TARIFICATION_LIBRE_MIN_AR,
+    TARIFICATION_LIBRE_MIN_MIN,
+)
 from views.dashboard.components.spin_duree import SpinDuree
 
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
-def _generer_code() -> str:
-    alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZ"
-    chiffres = "23456789"
-    return f"{''.join(random.choices(alphabet, k=3))}-{''.join(random.choices(chiffres, k=4))}"
+def _generer_username() -> str:
+    """Génère un identifiant utilisateur lisible : User suivi de 4 chiffres."""
+    return f"User{random.randint(1000, 9999)}"
 
 
 def _generer_password() -> str:
@@ -71,7 +74,7 @@ class DialogVente(QDialog):
 
         self.setWindowTitle("Vendre un ticket")
         self.setModal(True)
-        self.setFixedSize(480, 496)
+        self.setFixedSize(480, 514)
         self.setObjectName("dialogVente")
 
         outer = QVBoxLayout(self)
@@ -129,7 +132,7 @@ class DialogVente(QDialog):
 
         # Zone de détail (stacked: détail profil / personnalisé)
         self._zone_detail = QStackedWidget()
-        self._zone_detail.setFixedHeight(90)
+        self._zone_detail.setFixedHeight(108)
         self._zone_detail.addWidget(self._w_detail_profil())  # 0
         self._zone_detail.addWidget(self._w_custom())         # 1
         lay.addWidget(self._zone_detail)
@@ -245,6 +248,16 @@ class DialogVente(QDialog):
             self._grp_vitesse.addButton(btn, i)
             h_vit.addWidget(btn)
         h_vit.addStretch()
+        # Bouton "∞ Libre" dans la même rangée que les vitesses
+        self._btn_libre = QPushButton("∞ Libre")
+        self._btn_libre.setObjectName("boutonPaiement")
+        self._btn_libre.setCheckable(True)
+        self._btn_libre.setFixedHeight(30)
+        self._btn_libre.setCursor(Qt.CursorShape.PointingHandCursor)
+        self._btn_libre.toggled.connect(self._on_libre_toggle)
+        h_vit.addSpacing(8)
+        h_vit.addWidget(self._btn_libre)
+
         self._grp_vitesse.buttons()[0].setChecked(True)
         self._grp_vitesse.buttonClicked.connect(
             lambda b: (
@@ -264,7 +277,7 @@ class DialogVente(QDialog):
 
         self._spin_duree = SpinDuree(60)
         self._spin_duree.changed.connect(lambda _: self._maj_prix_perso())
-        h_dur.addWidget(self._spin_duree, stretch=1)
+        h_dur.addWidget(self._spin_duree)
 
         self._lbl_prix_perso = QLabel()
         self._lbl_prix_perso.setObjectName("prixCarteProfil")
@@ -273,6 +286,21 @@ class DialogVente(QDialog):
 
         lay.addLayout(h_dur)
         return w
+
+    def _on_libre_toggle(self, checked: bool):
+        self._spin_duree.setVisible(not checked)
+        for btn in self._grp_vitesse.buttons():
+            btn.setEnabled(not checked)
+        if checked:
+            # Défaut 5 Mbps (index 1) pour session libre
+            self._grp_vitesse.button(1).setChecked(True)
+            self._vitesse_idx = 1
+            self._lbl_prix_perso.setText(
+                f"{TARIFICATION_LIBRE_MIN_AR} Ar min. (<{TARIFICATION_LIBRE_MIN_MIN} min)"
+            )
+            self._btn_confirmer.setText("  Ouvrir la session")
+        else:
+            self._maj_prix_perso()
 
     # ── Page 2 : ticket généré ────────────────────────────────────────────────
 
@@ -294,7 +322,7 @@ class DialogVente(QDialog):
         ct.setContentsMargins(20, 22, 20, 22)
         ct.setSpacing(10)
 
-        lbl_c = QLabel("CODE D'ACCÈS")
+        lbl_c = QLabel("UTILISATEUR")
         lbl_c.setObjectName("titreSectionSessions")
         lbl_c.setAlignment(Qt.AlignmentFlag.AlignCenter)
         ct.addWidget(lbl_c)
@@ -381,9 +409,32 @@ class DialogVente(QDialog):
             self._btn_confirmer.setText(f"  Confirmer — {int(prix)} Ar")
 
     def _effectuer_vente(self):
-        code     = _generer_code()
+        code     = _generer_username()
         password = _generer_password()
         profil   = self._combo.currentData()
+
+        # ── Session libre (sans durée fixe) ──────────────────────────
+        if profil is None and self._btn_libre.isChecked():
+            v = VITESSES[self._vitesse_idx]
+            ticket = {
+                "code":              code,
+                "password":          password,
+                "profil":            f"Libre - {v['label']}",
+                "profil_id":         None,
+                "debit_max":         v["debit_max"],
+                "duree_session_max": 0,
+                "validite":          24,
+                "prix":              0,
+                "methode":           self._methode,
+                "libre":             True,
+            }
+            recap = f"Session libre · {v['label']} · Paiement à la fin"
+            self._lbl_code.setText(code)
+            self._lbl_mdp.setText(password)
+            self._lbl_recap.setText(recap)
+            self.ticket_vendu.emit(ticket)
+            self._stacked.setCurrentIndex(1)
+            return
 
         if profil is not None:
             ticket = {
@@ -406,14 +457,15 @@ class DialogVente(QDialog):
             duree_min = self._spin_duree.valeur_minutes
             prix      = round((duree_min / 60) * TARIFICATION_PRIX_PAR_HEURE)
             v         = VITESSES[self._vitesse_idx]
+            validite = max(24, duree_min // 60)
             ticket = {
                 "code":              code,
                 "password":          password,
-                "profil":            f"Perso {v['label']}",
+                "profil":            f"Perso - {v['label']}",
                 "profil_id":         None,
                 "debit_max":         v["debit_max"],
                 "duree_session_max": duree_min,
-                "validite":          24,
+                "validite":          validite,
                 "prix":              prix,
                 "methode":           self._methode,
             }
@@ -432,6 +484,7 @@ class DialogVente(QDialog):
         self._combo.setCurrentIndex(0)
         self._spin_duree.definir_minutes(60)
         self._grp_vitesse.buttons()[0].setChecked(True)
+        self._btn_libre.setChecked(False)
         self._vitesse_idx = 0
         self._grp_pay.buttons()[0].setChecked(True)
         self._methode = "especes"

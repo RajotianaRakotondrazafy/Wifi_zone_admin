@@ -41,6 +41,27 @@ def _parse_uptime(texte: str | None) -> int:
     return total
 
 
+def _parse_temps_restant(texte: str | None) -> int:
+    """Convertit session-time-left RouterOS en secondes.
+
+    Gère les formats : '00:05:00' (HH:MM:SS), '5:30' (MM:SS),
+    '5m30s' (uptime) et '0s'.
+    """
+    if not texte:
+        return 0
+    if ":" in texte:
+        parties = texte.split(":")
+        try:
+            valeurs = [int(p) for p in parties]
+            if len(valeurs) == 3:
+                return valeurs[0] * 3600 + valeurs[1] * 60 + valeurs[2]
+            if len(valeurs) == 2:
+                return valeurs[0] * 60 + valeurs[1]
+        except ValueError:
+            pass
+    return _parse_uptime(texte)
+
+
 class MikroTikErreur(Exception):
     """Erreur levée par MikroTikService."""
 
@@ -58,8 +79,10 @@ class MikroTikService:
     def __init__(self):
         self._pool: Any = None
         self._api: Any = None
-        # {nom_interface: (rx_bytes, tx_bytes, monotonic_ts)} pour calcul débit
+        # {nom_interface: (rx_bytes, tx_bytes, monotonic_ts)} pour calcul débit interface
         self._prev_stats: dict[str, tuple[int, int, float]] = {}
+        # {mac_address: (bytes_in, bytes_out, monotonic_ts)} pour calcul débit par session
+        self._prev_sessions: dict[str, tuple[int, int, float]] = {}
 
     # ── Connexion ─────────────────────────────────────────────────────────────
 
@@ -161,7 +184,7 @@ class MikroTikService:
             "profile":  profil,
             "server":   server,
         }
-        if duree_min is not None:
+        if duree_min:   # 0 ou None = pas de limite (session libre)
             kwargs["limit-uptime"] = _minutes_vers_timeout(duree_min)
 
         try:
@@ -210,11 +233,65 @@ class MikroTikService:
             if s.get("user")
         }
 
-    def deconnecter_utilisateur(self, mac_address: str) -> bool:
-        """Force la déconnexion d'un utilisateur par son adresse MAC.
+    def obtenir_temps_restants_sessions(self) -> dict[str, int]:
+        if not self.connecte:
+            return {}
+        try:
+            api = self._api_ou_erreur()
+            sessions = api.get_resource("/ip/hotspot/active").get()
+            result = {}
+            for s in sessions:
+                user      = s.get("user", "")
+                time_left = s.get("session-time-left", "")
+                if user and time_left:
+                    secondes = _parse_temps_restant(time_left)
+                    if secondes > 0:
+                        result[user] = secondes
+            return result
+        except Exception as exc:
+            logger.warning("Impossible de lire session-time-left : %s", exc)
+            return {}
 
-        Retourne True si une session a été trouvée et supprimée.
+    def deconnecter_par_username(self, username: str) -> bool:
+        """Déconnecte la session active ET supprime l'user hotspot (empêche reconnexion).
+
+        Note : routeros_api décode '.id' → 'id' dans les réponses.
+        La clé correcte dans les dicts retournés par get() est donc 'id', pas '.id'.
+        La méthode remove(id=...) ré-encode 'id' → '.id' avant d'envoyer à RouterOS.
         """
+        if not self.connecte:
+            logger.warning("deconnecter_par_username(%s) : pas connecté", username)
+            return False
+        try:
+            api = self._api_ou_erreur()
+
+            # 1. Retirer la session active en cours
+            toutes_sessions = api.get_resource("/ip/hotspot/active").get()
+            cibles = [s for s in toutes_sessions if s.get("user") == username]
+            logger.info("Sessions actives trouvées pour '%s' : %d / %d",
+                        username, len(cibles), len(toutes_sessions))
+            res_active = api.get_resource("/ip/hotspot/active")
+            for s in cibles:
+                sid = s.get("id", "")
+                logger.info("Suppression session active id=%s", sid)
+                res_active.remove(id=sid)
+
+            # 2. Supprimer l'entrée dans /ip/hotspot/user pour bloquer la reconnexion
+            all_users = api.get_resource("/ip/hotspot/user").get()
+            cibles_user = [u for u in all_users if u.get("name") == username]
+            logger.info("Users hotspot trouvés pour '%s' : %d", username, len(cibles_user))
+            res_user = api.get_resource("/ip/hotspot/user")
+            for u in cibles_user:
+                uid = u.get("id", "")
+                logger.info("Suppression user hotspot id=%s", uid)
+                res_user.remove(id=uid)
+
+            return True
+        except Exception as exc:
+            logger.error("Déconnexion %s échouée : %s", username, exc)
+            return False
+
+    def deconnecter_utilisateur(self, mac_address: str) -> bool:
         api = self._api_ou_erreur()
         try:
             actifs = api.get_resource("/ip/hotspot/active").get()
@@ -300,6 +377,25 @@ class MikroTikService:
             sessions_raw = api.get_resource("/ip/hotspot/active").get()
             debit_down, debit_up = self._calculer_debit(api)
             latence = self._mesurer_latence()
+            now = time.monotonic()
+
+            hostnames = self._obtenir_hostnames(api)
+            sessions = []
+            for s in sessions_raw:
+                mac = s.get("mac-address", "")
+                b_in  = int(s.get("bytes-in",  0))
+                b_out = int(s.get("bytes-out", 0))
+                prev = self._prev_sessions.get(mac)
+                self._prev_sessions[mac] = (b_in, b_out, now)
+                if prev is not None:
+                    p_in, p_out, p_ts = prev
+                    dt = now - p_ts
+                    s_down = max(0.0, (b_out - p_out) / dt) if dt > 0 else 0.0
+                    s_up   = max(0.0, (b_in  - p_in)  / dt) if dt > 0 else 0.0
+                else:
+                    s_down = s_up = 0.0
+                nom_hote = hostnames.get(mac.upper(), "")
+                sessions.append(self._formater_session(s, s_down, s_up, nom_hote))
 
             return {
                 "connecte":           True,
@@ -307,7 +403,7 @@ class MikroTikService:
                 "debit_descendant":   debit_down,
                 "debit_montant":      debit_up,
                 "latence":            latence,
-                "sessions":           [self._formater_session(s) for s in sessions_raw],
+                "sessions":           sessions,
             }
         except Exception as exc:
             logger.error("Dashboard snapshot échoué : %s", exc)
@@ -327,7 +423,12 @@ class MikroTikService:
         }
 
     @staticmethod
-    def _formater_session(s: dict) -> dict:
+    def _formater_session(
+        s: dict,
+        debit_down: float = 0.0,
+        debit_up: float = 0.0,
+        nom_hote: str = "",
+    ) -> dict:
         user    = s.get("user", "")
         address = s.get("address", "")
         uptime  = s.get("uptime", "")
@@ -336,15 +437,58 @@ class MikroTikService:
             detail += f"  ·  {uptime}"
         return {
             "nom_appareil":  user if user else "Inconnu",
+            "nom_hote":      nom_hote,
             "mac_address":   s.get("mac-address", ""),
+            "adresse_ip":    address,
+            "session_id":    s.get("id", ""),
             "type_appareil": detail,
-            "debit_actuel":  0,
+            "debit_down":    debit_down,
+            "debit_up":      debit_up,
             "est_connecte":  True,
             "est_identifie": bool(user),
         }
 
+    def _obtenir_hostnames(self, api) -> dict[str, str]:
+        """Retourne {MAC_UPPER: hostname} depuis les baux DHCP actifs."""
+        try:
+            leases = api.get_resource("/ip/dhcp-server/lease").get()
+            return {
+                lease.get("mac-address", "").upper(): lease.get("host-name", "")
+                for lease in leases
+                if lease.get("host-name")
+            }
+        except Exception:
+            return {}
+
+    def bloquer_session(self, session_id: str) -> bool:
+        """Déconnecte une session hotspot active (par son .id RouterOS)."""
+        try:
+            api = self._api_ou_erreur()
+            api.get_resource("/ip/hotspot/active").remove(id=session_id)
+            return True
+        except Exception as exc:
+            logger.error("Blocage session %s échoué : %s", session_id, exc)
+            return False
+
+    def limiter_session(self, adresse_ip: str, debit_ko: int) -> bool:
+        """Applique ou met à jour une Simple Queue sur l'IP cliente (Ko/s symétrique)."""
+        try:
+            api = self._api_ou_erreur()
+            queues = api.get_resource("/queue/simple")
+            nom   = f"ekonnekta-{adresse_ip}"
+            rate  = f"{debit_ko}k/{debit_ko}k"
+            existantes = queues.get(name=nom)
+            if existantes:
+                queues.set(id=existantes[0]["id"], max_limit=rate)
+            else:
+                queues.add(name=nom, target=f"{adresse_ip}/32", max_limit=rate)
+            return True
+        except Exception as exc:
+            logger.error("Limitation %s à %dKo/s échouée : %s", adresse_ip, debit_ko, exc)
+            return False
+
     def _calculer_debit(self, api, interface: str = "ether1") -> tuple[float, float]:
-        """Débit instantané sur l'interface WAN en Mb/s (megabits/s).
+        """Débit instantané sur l'interface WAN en octets/s.
 
         Premier appel retourne (0, 0) — le delta se calcule au suivant.
         """
@@ -367,9 +511,8 @@ class MikroTikService:
             if dt <= 0:
                 return 0.0, 0.0
 
-            # bytes/s → megabits/s (* 8 / 1_000_000)
-            down = max(0.0, (rx - prev_rx) * 8 / dt / 1_000_000)
-            up   = max(0.0, (tx - prev_tx) * 8 / dt / 1_000_000)
+            down = max(0.0, (rx - prev_rx) / dt)
+            up   = max(0.0, (tx - prev_tx) / dt)
             return round(down, 1), round(up, 1)
         except Exception:
             return 0.0, 0.0

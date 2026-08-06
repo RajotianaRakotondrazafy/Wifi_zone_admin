@@ -47,6 +47,7 @@ class SaleRepository:
                 s.methode_paiement,
                 s.montant,
                 t.code,
+                t.statut,
                 COALESCE(t.nom_affichage, hp.nom) AS profil_nom,
                 t.duree_session_max AS duree_session_max,
                 t.date_premiere_connexion AS date_premiere_connexion
@@ -63,6 +64,19 @@ class SaleRepository:
         except sqlite3.Error as e:
             raise RuntimeError(f"Erreur lors de la récupération des ventes du jour : {e}")
 
+    def update_montant(self, ticket_id: int, montant: float):
+        """Met à jour le montant de la vente liée à un ticket (session libre)."""
+        try:
+            cursor = self._conn.cursor()
+            cursor.execute(
+                "UPDATE sales SET montant = ? WHERE ticket_id = ?",
+                (montant, ticket_id),
+            )
+            self._conn.commit()
+        except sqlite3.Error as e:
+            self._conn.rollback()
+            raise RuntimeError(f"Erreur mise à jour montant : {e}")
+
     def agreger_par_date(self, date: str) -> dict:
         query = """
             SELECT
@@ -70,11 +84,14 @@ class SaleRepository:
                 COALESCE(SUM(s.montant), 0)                 AS ca_total,
                 SUM(
                     CASE
-                        WHEN t.date_premiere_connexion IS NULL THEN 1
-                        WHEN datetime(t.date_premiere_connexion,
-                                     '+' || t.duree_session_max || ' minutes')
-                                  > datetime('now', 'localtime')
-                             THEN 1
+                        WHEN t.duree_session_max = 0
+                             AND t.statut NOT IN ('epuise','expire') THEN 1
+                        WHEN t.duree_session_max != 0
+                             AND t.date_premiere_connexion IS NULL   THEN 1
+                        WHEN t.duree_session_max != 0
+                             AND datetime(t.date_premiere_connexion,
+                                         '+' || t.duree_session_max || ' minutes')
+                                  > datetime('now', 'localtime')     THEN 1
                         ELSE 0
                     END
                 )                                           AS nb_actifs
