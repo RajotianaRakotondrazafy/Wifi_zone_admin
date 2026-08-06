@@ -19,6 +19,8 @@ class HotspotProfile:
     validite: int
     # Prix de vente en unité monétaire locale
     prix: float
+    # Nombre maximum d'appareils simultanés (shared-users MikroTik) — 1 = usage exclusif
+    utilisateurs_max: int = 1
     # Statut : 'actif' (proposé à la vente) | 'inactif' (masqué)
     statut: str = "actif"
     id: Optional[int] = None
@@ -32,6 +34,7 @@ class HotspotProfile:
             "duree_session_max": self.duree_session_max,
             "validite": self.validite,
             "prix": self.prix,
+            "utilisateurs_max": self.utilisateurs_max,
             "statut": self.statut,
         }
 
@@ -45,5 +48,6 @@ class HotspotProfile:
             duree_session_max=data["duree_session_max"],
             validite=data["validite"],
             prix=data["prix"],
+            utilisateurs_max=data.get("utilisateurs_max", 1),
             statut=data.get("statut", "actif"),
         )

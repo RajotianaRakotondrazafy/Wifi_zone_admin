@@ -194,13 +194,16 @@ class VentesController:
         router_id: int | None = None,
         nom: str | None = None,
         duree_session_max: int = 60,
+        utilisateurs_max: int = 1,
     ) -> int:
         if router_id is None:
             router_id = self._router_id_par_defaut()
 
         if nom is not None:
             for p in self._profile_repo.lister_tous(actif_seulement=True):
-                if p.nom == nom and p.debit_max == debit_max:
+                if (p.nom == nom
+                        and p.debit_max == debit_max
+                        and p.utilisateurs_max == utilisateurs_max):
                     return p.id
 
         nouveau = HotspotProfile(
@@ -210,6 +213,7 @@ class VentesController:
             duree_session_max=duree_session_max,
             validite=24,
             prix=0,
+            utilisateurs_max=utilisateurs_max,
         )
         self._profile_repo.creer(nouveau)
         return nouveau.id
@@ -222,6 +226,7 @@ class VentesController:
                     ticket["debit_max"],
                     nom=ticket.get("profil"),
                     duree_session_max=ticket["duree_session_max"],
+                    utilisateurs_max=ticket.get("utilisateurs_max", 1),
                 )
 
             nouveau_ticket = Ticket(
@@ -287,19 +292,22 @@ class VentesController:
                 }
 
             try:
+                est_forfait = profil.utilisateurs_max > 1
                 noms_profils = {p.get("name") for p in svc.lister_profils()}
                 if profil.nom not in noms_profils:
                     svc.creer_profil(
                         profil.nom,
                         debit_max_kbps=profil.debit_max,
-                        session_timeout_min=profil.duree_session_max,
+                        session_timeout_min=None if est_forfait else profil.duree_session_max,
+                        shared_users=profil.utilisateurs_max,
                     )
 
                 svc.ajouter_utilisateur_hotspot(
                     ticket.code,
                     ticket.password,
                     profil.nom,
-                    duree_min=ticket.duree_session_max,
+                    # Pour les forfaits partagés, pas de limit-uptime (partage multi-appareils)
+                    duree_min=0 if est_forfait else ticket.duree_session_max,
                 )
                 return {"ok": True, "message": f"Ticket {ticket.code} enregistré sur {routeur.nom}."}
             except MikroTikErreur as exc:

@@ -5,7 +5,7 @@ import qtawesome as qta
 from PyQt6.QtCore import Qt, pyqtSignal
 from PyQt6.QtWidgets import (
     QDialog, QVBoxLayout, QHBoxLayout, QLabel, QPushButton,
-    QFrame, QButtonGroup, QStackedWidget, QWidget, QComboBox,
+    QFrame, QButtonGroup, QStackedWidget, QWidget, QComboBox, QSpinBox,
 )
 
 from config.settings import (
@@ -55,7 +55,8 @@ _METHODES = {
     "carte":        "Carte",
 }
 
-_IDX_PERSO = -1  # sentinel pour l'option personnalisée
+_IDX_PERSO   = -1       # sentinel pour l'option personnalisée
+_FORFAIT_TAG = "forfait" # userData du combo pour l'option forfait
 
 
 # ── Dialog principal ──────────────────────────────────────────────────────────
@@ -124,17 +125,19 @@ class DialogVente(QDialog):
                 f"{p['nom']}  —  {int(p['prix'])} Ar",
                 userData=p,
             )
+        self._combo.addItem("🔗  Forfait mensuel — partage d'appareils", userData=_FORFAIT_TAG)
         self._combo.addItem("✏  Personnalisé (durée libre)", userData=None)
 
         self._combo.currentIndexChanged.connect(self._on_combo_change)
         lay.addWidget(self._combo)
         lay.addSpacing(10)
 
-        # Zone de détail (stacked: détail profil / personnalisé)
+        # Zone de détail (stacked: détail profil / forfait / personnalisé)
         self._zone_detail = QStackedWidget()
         self._zone_detail.setFixedHeight(108)
         self._zone_detail.addWidget(self._w_detail_profil())  # 0
-        self._zone_detail.addWidget(self._w_custom())         # 1
+        self._zone_detail.addWidget(self._w_forfait())        # 1
+        self._zone_detail.addWidget(self._w_custom())         # 2
         lay.addWidget(self._zone_detail)
         lay.addSpacing(14)
         lay.addWidget(self._sep())
@@ -226,6 +229,73 @@ class DialogVente(QDialog):
         lay.addStretch()
         self._d_prix     = _col("PRIX")
         return w
+
+    def _w_forfait(self) -> QFrame:
+        """Forfait mensuel partagé : 30 jours · 5 Mbps · N appareils max."""
+        w = QFrame()
+        w.setObjectName("carteDetailProfil")
+        lay = QVBoxLayout(w)
+        lay.setContentsMargins(16, 10, 16, 10)
+        lay.setSpacing(8)
+
+        # Ligne 1 : description fixe
+        lbl_info = QLabel("30 jours · 5 Mbps · Appareils simultanés limités")
+        lbl_info.setObjectName("detailSessionRow")
+        lay.addWidget(lbl_info)
+
+        # Ligne 2 : nb appareils + prix
+        h = QHBoxLayout()
+        h.setSpacing(12)
+
+        lbl_app = QLabel("Appareils max :")
+        lbl_app.setObjectName("labelParametre")
+        h.addWidget(lbl_app)
+
+        self._spin_appareils = QSpinBox()
+        self._spin_appareils.setRange(1, 20)
+        self._spin_appareils.setValue(5)
+        self._spin_appareils.setFixedWidth(90)
+        self._spin_appareils.setFixedHeight(30)
+        self._spin_appareils.valueChanged.connect(self._on_appareils_change)
+        h.addWidget(self._spin_appareils)
+
+        h.addStretch()
+
+        lbl_px = QLabel("Prix :")
+        lbl_px.setObjectName("labelParametre")
+        h.addWidget(lbl_px)
+
+        self._spin_prix_forfait = QSpinBox()
+        self._spin_prix_forfait.setRange(0, 9_999_999)
+        self._spin_prix_forfait.setSingleStep(1000)
+        self._spin_prix_forfait.setSuffix(" Ar")
+        self._spin_prix_forfait.setFixedWidth(150)
+        self._spin_prix_forfait.setFixedHeight(30)
+        self._spin_prix_forfait.valueChanged.connect(self._maj_prix_forfait)
+        h.addWidget(self._spin_prix_forfait)
+        # Initialiser avec la valeur calculée pour 5 appareils
+        self._spin_prix_forfait.setValue(self._prix_forfait_pour(5))
+
+        lay.addLayout(h)
+        return w
+
+    @staticmethod
+    def _prix_forfait_pour(n_appareils: int) -> int:
+        """75 000 Ar pour 5 appareils, +15 000 Ar par appareil supplémentaire."""
+        BASE, PALIER, REF = 75_000, 15_000, 5
+        return max(PALIER, BASE + (n_appareils - REF) * PALIER)
+
+    def _on_appareils_change(self, n: int):
+        self._spin_prix_forfait.blockSignals(True)
+        self._spin_prix_forfait.setValue(self._prix_forfait_pour(n))
+        self._spin_prix_forfait.blockSignals(False)
+        self._maj_prix_forfait()
+
+    def _maj_prix_forfait(self):
+        if not hasattr(self, "_btn_confirmer"):
+            return
+        prix = self._spin_prix_forfait.value()
+        self._btn_confirmer.setText(f"  Confirmer — {prix:,} Ar".replace(",", " "))
 
     def _w_custom(self) -> QFrame:
         """Configuration personnalisée : vitesse + durée (2 lignes)."""
@@ -389,7 +459,10 @@ class DialogVente(QDialog):
 
     def _on_combo_change(self, idx: int):
         profil = self._combo.itemData(idx)
-        if profil is not None:
+        if profil == _FORFAIT_TAG:
+            self._zone_detail.setCurrentIndex(1)
+            self._maj_prix_forfait()
+        elif profil is not None:
             self._d_duree.setText(_fmt_duree(profil["duree_session_max"]))
             self._d_debit.setText(f"{profil['debit_max'] // 1024} Mbps")
             self._d_validite.setText(_fmt_validite(profil["validite"]))
@@ -397,7 +470,7 @@ class DialogVente(QDialog):
             self._zone_detail.setCurrentIndex(0)
             self._btn_confirmer.setText(f"  Confirmer — {int(profil['prix'])} Ar")
         else:
-            self._zone_detail.setCurrentIndex(1)
+            self._zone_detail.setCurrentIndex(2)
             self._maj_prix_perso()
 
     def _maj_prix_perso(self):
@@ -412,6 +485,34 @@ class DialogVente(QDialog):
         code     = _generer_username()
         password = _generer_password()
         profil   = self._combo.currentData()
+
+        # ── Forfait mensuel partagé ───────────────────────────────────
+        if profil == _FORFAIT_TAG:
+            n_app  = self._spin_appareils.value()
+            prix   = self._spin_prix_forfait.value()
+            nom_profil = f"Forfait 5 Mbps - {n_app} app"
+            ticket = {
+                "code":              code,
+                "password":          password,
+                "profil":            nom_profil,
+                "profil_id":         None,
+                "debit_max":         5120,          # 5 Mbps
+                "duree_session_max": 43200,          # 30 jours en minutes (DB uniquement)
+                "validite":          720,            # 30 jours en heures
+                "prix":              prix,
+                "methode":           self._methode,
+                "utilisateurs_max":  n_app,
+            }
+            recap = (
+                f"Forfait 1 mois · 5 Mbps · {n_app} appareils max  ·  "
+                f"{prix} Ar  ·  {_METHODES.get(self._methode, '')}"
+            )
+            self._lbl_code.setText(code)
+            self._lbl_mdp.setText(password)
+            self._lbl_recap.setText(recap)
+            self.ticket_vendu.emit(ticket)
+            self._stacked.setCurrentIndex(1)
+            return
 
         # ── Session libre (sans durée fixe) ──────────────────────────
         if profil is None and self._btn_libre.isChecked():
@@ -483,6 +584,8 @@ class DialogVente(QDialog):
     def _reinitialiser(self):
         self._combo.setCurrentIndex(0)
         self._spin_duree.definir_minutes(60)
+        self._spin_appareils.setValue(5)
+        self._spin_prix_forfait.setValue(self._prix_forfait_pour(5))
         self._grp_vitesse.buttons()[0].setChecked(True)
         self._btn_libre.setChecked(False)
         self._vitesse_idx = 0

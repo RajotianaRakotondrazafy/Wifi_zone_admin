@@ -46,15 +46,16 @@ class HotspotProfileRepository:
 
     def creer(self, profil: HotspotProfile) -> HotspotProfile:
         query = """
-            INSERT INTO hotspot_profiles (router_id, nom, debit_max, duree_session_max, validite, prix, statut)
-            VALUES (?, ?, ?, ?, ?, ?, ?)
+            INSERT INTO hotspot_profiles
+                (router_id, nom, debit_max, duree_session_max, validite, prix, utilisateurs_max, statut)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
         """
         try:
             cursor = self._conn.cursor()
             cursor.execute(query, (
                 profil.router_id, profil.nom, profil.debit_max,
                 profil.duree_session_max, profil.validite, profil.prix,
-                profil.statut,
+                profil.utilisateurs_max, profil.statut,
             ))
             self._conn.commit()
             profil.id = cursor.lastrowid
@@ -68,7 +69,8 @@ class HotspotProfileRepository:
             raise ValueError("Impossible de modifier un profil sans id.")
         query = """
             UPDATE hotspot_profiles
-            SET router_id = ?, nom = ?, debit_max = ?, duree_session_max = ?, validite = ?, prix = ?, statut = ?
+            SET router_id = ?, nom = ?, debit_max = ?, duree_session_max = ?,
+                validite = ?, prix = ?, utilisateurs_max = ?, statut = ?
             WHERE id = ?
         """
         try:
@@ -76,7 +78,7 @@ class HotspotProfileRepository:
             cursor.execute(query, (
                 profil.router_id, profil.nom, profil.debit_max,
                 profil.duree_session_max, profil.validite, profil.prix,
-                profil.statut, profil.id,
+                profil.utilisateurs_max, profil.statut, profil.id,
             ))
             self._conn.commit()
             return cursor.rowcount > 0

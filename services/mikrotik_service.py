@@ -322,26 +322,30 @@ class MikroTikService:
         debit_max_kbps: int | None = None,
         *,
         session_timeout_min: int | None = None,
+        shared_users: int = 1,
     ) -> dict:
         """Crée un profil hotspot sur le routeur.
 
         Args:
-            nom               — nom du profil (doit être unique)
-            debit_max_kbps    — limite de bande passante en Kbps (None = illimité)
+            nom                 — nom du profil (doit être unique)
+            debit_max_kbps      — limite de bande passante en Kbps (None = illimité)
             session_timeout_min — durée max de session en minutes (None = illimité)
+            shared_users        — nb max d'appareils simultanés sur le même identifiant
         """
         api = self._api_ou_erreur()
         kwargs: dict[str, str] = {"name": nom}
         if debit_max_kbps is not None:
             rate = f"{debit_max_kbps}k"
             kwargs["rate-limit"] = f"{rate}/{rate}"
-        if session_timeout_min is not None:
+        if session_timeout_min is not None and session_timeout_min > 0:
             kwargs["session-timeout"] = _minutes_vers_timeout(session_timeout_min)
+        if shared_users > 1:
+            kwargs["shared-users"] = str(shared_users)
 
         try:
             ressource = api.get_resource("/ip/hotspot/user/profile")
             result = ressource.add(**kwargs)
-            logger.info("Profil hotspot créé : %s", nom)
+            logger.info("Profil hotspot créé : %s (shared-users=%d)", nom, shared_users)
             return {"id": result, "nom": nom}
         except Exception as exc:
             raise MikroTikErreur(f"Impossible de créer le profil '{nom}': {exc}") from exc
