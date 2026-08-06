@@ -19,6 +19,8 @@ class Session:
     octets_recus: int = 0
     # Durée effective de la session en secondes
     duree_reelle: Optional[int] = None
+    # Nom d'hôte DHCP (nom d'appareil) si connu
+    nom_hote: Optional[str] = None
     id: Optional[int] = None
 
     def to_dict(self) -> dict:
@@ -32,6 +34,7 @@ class Session:
             "octets_envoyes": self.octets_envoyes,
             "octets_recus": self.octets_recus,
             "duree_reelle": self.duree_reelle,
+            "nom_hote": self.nom_hote,
         }
 
     @classmethod
@@ -46,4 +49,5 @@ class Session:
             octets_envoyes=data.get("octets_envoyes", 0),
             octets_recus=data.get("octets_recus", 0),
             duree_reelle=data.get("duree_reelle"),
+            nom_hote=data.get("nom_hote"),
         )

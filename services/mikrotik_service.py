@@ -233,6 +233,11 @@ class MikroTikService:
             if s.get("user")
         }
 
+    def obtenir_hostnames(self) -> dict[str, str]:
+        """Retourne {MAC_UPPER: hostname} depuis les baux DHCP actifs."""
+        api = self._api_ou_erreur()
+        return self._obtenir_hostnames(api)
+
     def obtenir_temps_restants_sessions(self) -> dict[str, int]:
         if not self.connecte:
             return {}
@@ -472,6 +477,47 @@ class MikroTikService:
             return True
         except Exception as exc:
             logger.error("Blocage session %s échoué : %s", session_id, exc)
+            return False
+
+    def bloquer_appareil(self, mac_address: str) -> bool:
+        """Bloque durablement un appareil au hotspot.
+
+        Ajoute une règle /ip/hotspot/ip-binding type=blocked (empêche toute
+        reconnexion) puis déconnecte ses sessions actives.
+        """
+        if not mac_address:
+            return False
+        try:
+            api = self._api_ou_erreur()
+            binding = api.get_resource("/ip/hotspot/ip-binding")
+            existants = binding.get(mac_address=mac_address)
+            if not existants:
+                binding.add(mac_address=mac_address, type="blocked")
+            actifs = api.get_resource("/ip/hotspot/active").get()
+            ressource_active = api.get_resource("/ip/hotspot/active")
+            for s in actifs:
+                if s.get("mac-address") == mac_address:
+                    ressource_active.remove(id=s.get("id", ""))
+            logger.info("Appareil bloqué au hotspot : %s", mac_address)
+            return True
+        except Exception as exc:
+            logger.error("Blocage appareil %s échoué : %s", mac_address, exc)
+            return False
+
+    def debloquer_appareil(self, mac_address: str) -> bool:
+        """Retire le blocage /ip/hotspot/ip-binding d'un appareil."""
+        if not mac_address:
+            return False
+        try:
+            api = self._api_ou_erreur()
+            binding = api.get_resource("/ip/hotspot/ip-binding")
+            existants = binding.get(mac_address=mac_address)
+            for e in existants:
+                binding.remove(id=e["id"])
+            logger.info("Appareil débloqué au hotspot : %s", mac_address)
+            return bool(existants)
+        except Exception as exc:
+            logger.error("Déblocage appareil %s échoué : %s", mac_address, exc)
             return False
 
     def limiter_session(self, adresse_ip: str, debit_ko: int) -> bool:

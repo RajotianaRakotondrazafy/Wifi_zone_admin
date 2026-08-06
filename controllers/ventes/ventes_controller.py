@@ -29,10 +29,13 @@ class VentesController:
 
     def obtenir_profils(self, router_id: int | None = None) -> list[dict]:
         if router_id is not None:
-            profils = self._profile_repo.lister_par_router(router_id, actif_seulement=True)
+            profils = self._profile_repo.lister_par_router(
+                router_id, actif_seulement=True, exclure_internes=True
+            )
         else:
-            profils = self._profile_repo.lister_tous(actif_seulement=True)
-
+            profils = self._profile_repo.lister_tous(
+                actif_seulement=True, exclure_internes=True
+            )
         return [profil.to_dict() for profil in profils]
 
     def obtenir_ventes_du_jour(self) -> list[dict]:
@@ -200,6 +203,7 @@ class VentesController:
             router_id = self._router_id_par_defaut()
 
         if nom is not None:
+            # Cherche un profil interne existant correspondant (inclut les internes)
             for p in self._profile_repo.lister_tous(actif_seulement=True):
                 if (p.nom == nom
                         and p.debit_max == debit_max
@@ -214,6 +218,7 @@ class VentesController:
             validite=24,
             prix=0,
             utilisateurs_max=utilisateurs_max,
+            interne=True,
         )
         self._profile_repo.creer(nouveau)
         return nouveau.id

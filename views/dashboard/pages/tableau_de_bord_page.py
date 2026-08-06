@@ -4,6 +4,7 @@ from PyQt6.QtWidgets import (
     QMessageBox,
 )
 
+from controllers.blocages.blocages_controller import BlocagesController
 from controllers.dashboard.dashboard_controller import DashboardController
 from services.mikrotik_worker import WorkerDashboard
 from views.dashboard.components.stat_card import StatCard
@@ -23,9 +24,15 @@ def _formater_debit(octets_par_sec: float) -> tuple[str, str]:
 class TableauDeBordPage(QWidget):
     """Page principale : statistiques réseau + sessions actives."""
 
-    def __init__(self, dashboard_controller: DashboardController, parent=None):
+    def __init__(
+        self,
+        dashboard_controller: DashboardController,
+        blocages_controller: BlocagesController,
+        parent=None,
+    ):
         super().__init__(parent)
         self._controller = dashboard_controller
+        self._blocages_controller = blocages_controller
         self._worker: WorkerDashboard | None = None
 
         self._construire_interface()
@@ -220,19 +227,23 @@ class TableauDeBordPage(QWidget):
             )
 
     def _on_bloquer(self, donnees: dict):
-        nom        = donnees.get("nom_appareil", "Inconnu")
-        session_id = donnees.get("session_id", "")
+        nom = donnees.get("nom_appareil", "Inconnu")
         rep = QMessageBox.question(
             self, "Bloquer l'appareil",
-            f"Déconnecter <b>{nom}</b> du réseau ?",
+            f"Bloquer définitivement <b>{nom}</b> ?<br>"
+            "Il sera déconnecté et ne pourra plus se reconnecter au hotspot.",
             QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
         )
         if rep != QMessageBox.StandardButton.Yes:
             return
-        ok = self._controller.bloquer_session(session_id)
-        if not ok:
+        resultat = self._blocages_controller.bloquer_appareil(donnees)
+        if resultat.get("ok"):
+            QMessageBox.information(
+                self, "Appareil bloqué",
+                resultat.get("message", "Appareil bloqué."),
+            )
+        else:
             QMessageBox.warning(
                 self, "Erreur",
-                f"Impossible de déconnecter {nom}.\n"
-                "Vérifiez la connexion au routeur."
+                resultat.get("message", "Impossible de bloquer l'appareil."),
             )

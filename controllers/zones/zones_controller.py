@@ -19,7 +19,7 @@ class ZonesController:
         """
         zones = []
         for routeur in self._router_repo.lister_tous():
-            profils = self._profile_repo.lister_par_router(routeur.id)
+            profils = self._profile_repo.lister_par_router(routeur.id, exclure_internes=True)
             zones.append({
                 "id":             routeur.id,
                 "nom":            routeur.nom,
@@ -42,8 +42,8 @@ class ZonesController:
     # ── Profils ──────────────────────────────────────────────────────────
 
     def obtenir_profils(self, router_id: int) -> list[dict]:
-        """Tous les profils (actifs et inactifs) pour la gestion."""
-        profils = self._profile_repo.lister_par_router(router_id)
+        """Tous les profils manuels (actifs et inactifs) pour la gestion — exclut les internes."""
+        profils = self._profile_repo.lister_par_router(router_id, exclure_internes=True)
         return [p.to_dict() for p in profils]
 
     def creer_profil(self, data: dict) -> None:

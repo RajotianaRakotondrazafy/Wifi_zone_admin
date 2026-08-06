@@ -23,6 +23,9 @@ class HotspotProfile:
     utilisateurs_max: int = 1
     # Statut : 'actif' (proposé à la vente) | 'inactif' (masqué)
     statut: str = "actif"
+    # True = profil créé automatiquement lors d'une vente (Perso/Libre/Forfait),
+    # ne doit pas apparaître dans la gestion des profils WiFi
+    interne: bool = False
     id: Optional[int] = None
 
     def to_dict(self) -> dict:
@@ -36,6 +39,7 @@ class HotspotProfile:
             "prix": self.prix,
             "utilisateurs_max": self.utilisateurs_max,
             "statut": self.statut,
+            "interne": self.interne,
         }
 
     @classmethod
@@ -50,4 +54,5 @@ class HotspotProfile:
             prix=data["prix"],
             utilisateurs_max=data.get("utilisateurs_max", 1),
             statut=data.get("statut", "actif"),
+            interne=bool(data.get("interne", 0)),
         )

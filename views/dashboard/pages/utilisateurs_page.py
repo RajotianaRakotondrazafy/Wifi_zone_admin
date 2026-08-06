@@ -85,11 +85,14 @@ class LigneUtilisateur(QWidget):
 class UtilisateursPage(QWidget):
     """Page de gestion des comptes utilisateurs."""
 
-    def __init__(self, controller: UtilisateursController, parent=None):
+    def __init__(self, controller: UtilisateursController, utilisateur=None, parent=None):
         super().__init__(parent)
         self._controller = controller
         self._recherche = ""
+        role = getattr(utilisateur, "role", None) if utilisateur else None
+        self._est_admin = role == "admin" or getattr(role, "value", None) == "admin"
         self._construire_interface()
+        self._btn_ajouter.setVisible(self._est_admin)
         self._remplir()
 
     def _construire_interface(self):
@@ -109,13 +112,13 @@ class UtilisateursPage(QWidget):
         header.addWidget(self._badge_nb)
         header.addSpacing(12)
 
-        btn_ajouter = QPushButton("  Nouveau compte")
-        btn_ajouter.setObjectName("boutonActionPage")
-        btn_ajouter.setIcon(qta.icon("fa5s.user-plus", color="#ffffff"))
-        btn_ajouter.setCursor(Qt.CursorShape.PointingHandCursor)
-        btn_ajouter.setFixedHeight(38)
-        btn_ajouter.clicked.connect(self._ajouter)
-        header.addWidget(btn_ajouter)
+        self._btn_ajouter = QPushButton("  Nouveau compte")
+        self._btn_ajouter.setObjectName("boutonActionPage")
+        self._btn_ajouter.setIcon(qta.icon("fa5s.user-plus", color="#ffffff"))
+        self._btn_ajouter.setCursor(Qt.CursorShape.PointingHandCursor)
+        self._btn_ajouter.setFixedHeight(38)
+        self._btn_ajouter.clicked.connect(self._ajouter)
+        header.addWidget(self._btn_ajouter)
         layout.addLayout(header)
 
         # ── Recherche ────────────────────────────────────────────────────
@@ -168,7 +171,10 @@ class UtilisateursPage(QWidget):
         if not utilisateurs:
             lbl_vide = QLabel(
                 "Aucun utilisateur trouvé."
-                if self._recherche else "Aucun compte. Cliquez sur « Nouveau compte »."
+                if self._recherche else (
+                    "Aucun compte."
+                    if not self._est_admin else "Aucun compte. Cliquez sur « Nouveau compte »."
+                )
             )
             lbl_vide.setObjectName("loginUtilisateur")
             lbl_vide.setAlignment(Qt.AlignmentFlag.AlignCenter)

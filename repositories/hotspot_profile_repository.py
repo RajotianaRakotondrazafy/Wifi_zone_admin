@@ -8,10 +8,16 @@ class HotspotProfileRepository:
     def __init__(self):
         self._conn: sqlite3.Connection = DatabaseConnection.get_connection()
 
-    def lister_tous(self, actif_seulement: bool = False) -> list[HotspotProfile]:
-        query = "SELECT * FROM hotspot_profiles"
+    def lister_tous(self, actif_seulement: bool = False,
+                    exclure_internes: bool = False) -> list[HotspotProfile]:
+        conditions = []
         if actif_seulement:
-            query += " WHERE statut = 'actif'"
+            conditions.append("statut = 'actif'")
+        if exclure_internes:
+            conditions.append("interne = 0")
+        query = "SELECT * FROM hotspot_profiles"
+        if conditions:
+            query += " WHERE " + " AND ".join(conditions)
         query += " ORDER BY prix ASC"
         try:
             cursor = self._conn.cursor()
@@ -21,10 +27,14 @@ class HotspotProfileRepository:
         except sqlite3.Error as e:
             raise RuntimeError(f"Erreur lors de la récupération des profils : {e}")
 
-    def lister_par_router(self, router_id: int, actif_seulement: bool = False) -> list[HotspotProfile]:
-        query = "SELECT * FROM hotspot_profiles WHERE router_id = ?"
+    def lister_par_router(self, router_id: int, actif_seulement: bool = False,
+                          exclure_internes: bool = False) -> list[HotspotProfile]:
+        conditions = ["router_id = ?"]
         if actif_seulement:
-            query += " AND statut = 'actif'"
+            conditions.append("statut = 'actif'")
+        if exclure_internes:
+            conditions.append("interne = 0")
+        query = "SELECT * FROM hotspot_profiles WHERE " + " AND ".join(conditions)
         query += " ORDER BY prix ASC"
         try:
             cursor = self._conn.cursor()
@@ -47,15 +57,16 @@ class HotspotProfileRepository:
     def creer(self, profil: HotspotProfile) -> HotspotProfile:
         query = """
             INSERT INTO hotspot_profiles
-                (router_id, nom, debit_max, duree_session_max, validite, prix, utilisateurs_max, statut)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                (router_id, nom, debit_max, duree_session_max, validite, prix,
+                 utilisateurs_max, statut, interne)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
         """
         try:
             cursor = self._conn.cursor()
             cursor.execute(query, (
                 profil.router_id, profil.nom, profil.debit_max,
                 profil.duree_session_max, profil.validite, profil.prix,
-                profil.utilisateurs_max, profil.statut,
+                profil.utilisateurs_max, profil.statut, int(profil.interne),
             ))
             self._conn.commit()
             profil.id = cursor.lastrowid
@@ -70,7 +81,7 @@ class HotspotProfileRepository:
         query = """
             UPDATE hotspot_profiles
             SET router_id = ?, nom = ?, debit_max = ?, duree_session_max = ?,
-                validite = ?, prix = ?, utilisateurs_max = ?, statut = ?
+                validite = ?, prix = ?, utilisateurs_max = ?, statut = ?, interne = ?
             WHERE id = ?
         """
         try:
@@ -78,7 +89,7 @@ class HotspotProfileRepository:
             cursor.execute(query, (
                 profil.router_id, profil.nom, profil.debit_max,
                 profil.duree_session_max, profil.validite, profil.prix,
-                profil.utilisateurs_max, profil.statut, profil.id,
+                profil.utilisateurs_max, profil.statut, int(profil.interne), profil.id,
             ))
             self._conn.commit()
             return cursor.rowcount > 0
