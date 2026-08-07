@@ -2,6 +2,37 @@
    PAGE VENTES
    ================================================================ */
 
+/* Sélecteur de date (combo) dans le header */
+QComboBox#dateComboVentes {
+    background-color: #1c1c1b;
+    border: 1px solid #363633;
+    border-radius: 8px;
+    padding: 0 8px 0 12px;
+    color: #f1f1f1;
+    font-size: 13px;
+    font-weight: 500;
+}
+QComboBox#dateComboVentes:hover  { border-color: #4a4a47; }
+QComboBox#dateComboVentes:focus  { border-color: #5b6ee8; }
+QComboBox#dateComboVentes::drop-down {
+    border-left: 1px solid #363633;
+    width: 26px;
+    border-top-right-radius: 8px;
+    border-bottom-right-radius: 8px;
+    background: transparent;
+}
+QComboBox#dateComboVentes::down-arrow { image: none; }
+QComboBox#dateComboVentes QAbstractItemView {
+    background-color: #1e1e1c;
+    border: 1px solid #363633;
+    border-radius: 6px;
+    color: #c9cad4;
+    selection-background-color: rgba(91, 110, 232, 0.18);
+    selection-color: #f1f1f1;
+    padding: 4px 0;
+    outline: none;
+}
+
 QWidget#ligneVente { background-color: transparent; }
 QWidget#ligneVente:hover { background-color: rgba(255, 255, 255, 0.025); }
 

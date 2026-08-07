@@ -1,7 +1,13 @@
+import time
+
 from models.router import Router
 from models.hotspot_profile import HotspotProfile
 from repositories.router_repository import RouterRepository
 from repositories.hotspot_profile_repository import HotspotProfileRepository
+from services.mikrotik_service import MikroTikService
+
+# Délai minimum entre deux tentatives de connexion échouées par zone
+_BACKOFF = 15.0
 
 
 class ZonesController:
@@ -10,28 +16,77 @@ class ZonesController:
     def __init__(self):
         self._router_repo = RouterRepository()
         self._profile_repo = HotspotProfileRepository()
+        self._mikrotik = MikroTikService()
+        # Dernier état de connexion réel connu par zone : {router_id: bool}
+        self._etats_connexion: dict[int, bool] = {}
+        # Horodatages de dernier échec par zone : {router_id: monotonic_ts}
+        self._echecs: dict[int, float] = {}
+
+    # ── Vérification réelle de la connexion ─────────────────────────────────
+
+    def verifier_connexions(self) -> dict[int, bool]:
+        """Teste la connexion de chaque zone active (thread de fond).
+
+        Respecte un délai d'attente (_BACKOFF) après un échec pour éviter de
+        marteler les routeurs. Retourne {router_id: bool} des derniers états
+        connus.
+        """
+        now = time.monotonic()
+        for routeur in self._router_repo.lister_tous():
+            if routeur.statut != "actif":
+                self._etats_connexion.pop(routeur.id, None)
+                continue
+
+            if now - self._echecs.get(routeur.id, 0.0) < _BACKOFF:
+                continue
+
+            if not (routeur.adresse_ip and routeur.username and routeur.password_chiffre):
+                self._etats_connexion[routeur.id] = False
+                self._echecs[routeur.id] = now
+                continue
+
+            try:
+                ok = self._mikrotik.connecter_routeur(
+                    routeur.adresse_ip,
+                    routeur.username,
+                    routeur.password_chiffre,
+                    routeur.port_api or 8728,
+                )
+            except Exception:
+                ok = False
+            finally:
+                try:
+                    self._mikrotik.deconnecter()
+                except Exception:
+                    pass
+
+            self._etats_connexion[routeur.id] = ok
+            if not ok:
+                self._echecs[routeur.id] = now
+
+        return dict(self._etats_connexion)
+
+    # ── Lecture ────────────────────────────────────────────────────────────
 
     def obtenir_zones(self) -> list[dict]:
-        """Retourne les zones WiFi depuis la base de données.
-
-        TODO: Remplacer appareils/max_appareils par des appels réels à
-              mikrotik_service.obtenir_statistiques(routeur) → appareils_connectes
-        """
+        """Retourne les zones WiFi depuis la base de données avec l'état de
+        connexion réel (déterminé par `verifier_connexions`)."""
         zones = []
         for routeur in self._router_repo.lister_tous():
             profils = self._profile_repo.lister_par_router(routeur.id, exclure_internes=True)
             zones.append({
-                "id":             routeur.id,
-                "nom":            routeur.nom,
-                "username":       routeur.username,
-                "adresse_ip":     routeur.adresse_ip,
-                "port_api":       routeur.port_api,
-                "statut":         routeur.statut,
-                "connecte":       routeur.statut == "actif",
-                "nb_profils":     len(profils),
-                "modele":         "MikroTik RouterOS",
-                "appareils":      0,
-                "max_appareils":  20,
+                "id":                  routeur.id,
+                "nom":                 routeur.nom,
+                "username":            routeur.username,
+                "adresse_ip":          routeur.adresse_ip,
+                "port_api":            routeur.port_api,
+                "statut":              routeur.statut,
+                "connecte":            self._etats_connexion.get(routeur.id, False),
+                "connexion_inconnue":  routeur.id not in self._etats_connexion,
+                "nb_profils":          len(profils),
+                "modele":              "MikroTik RouterOS",
+                "appareils":           0,
+                "max_appareils":       20,
             })
         return zones
 

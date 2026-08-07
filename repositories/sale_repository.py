@@ -64,6 +64,48 @@ class SaleRepository:
         except sqlite3.Error as e:
             raise RuntimeError(f"Erreur lors de la récupération des ventes du jour : {e}")
 
+    def get_ventes_actives(self) -> list[dict]:
+        """Ventes dont le ticket est encore actif, tous jours confondus.
+
+        Un ticket est actif si :
+        - session libre (duree_session_max = 0) non clôturée ;
+        - session démarrée dont la durée n'est pas écoulée ;
+        - session jamais démarrée mais encore dans sa validité (date_vente + validité).
+        """
+        query = """
+            SELECT
+                s.date_vente,
+                s.methode_paiement,
+                s.montant,
+                t.code,
+                t.statut,
+                COALESCE(t.nom_affichage, hp.nom) AS profil_nom,
+                t.duree_session_max AS duree_session_max,
+                t.date_premiere_connexion AS date_premiere_connexion
+            FROM sales s
+            JOIN tickets t          ON t.id = s.ticket_id
+            JOIN hotspot_profiles hp ON hp.id = t.profile_id
+            WHERE
+                (t.duree_session_max = 0 AND t.statut NOT IN ('epuise', 'expire'))
+                OR (t.duree_session_max != 0
+                    AND t.date_premiere_connexion IS NOT NULL
+                    AND datetime(t.date_premiere_connexion,
+                                 '+' || t.duree_session_max || ' minutes')
+                        > datetime('now', 'localtime'))
+                OR (t.duree_session_max != 0
+                    AND t.date_premiere_connexion IS NULL
+                    AND datetime(s.date_vente,
+                                 '+' || t.validite || ' hours')
+                        > datetime('now', 'localtime'))
+            ORDER BY s.date_vente DESC
+        """
+        try:
+            cursor = self._conn.cursor()
+            cursor.execute(query)
+            return [dict(row) for row in cursor.fetchall()]
+        except sqlite3.Error as e:
+            raise RuntimeError(f"Erreur lors de la récupération des ventes actives : {e}")
+
     def update_montant(self, ticket_id: int, montant: float):
         """Met à jour le montant de la vente liée à un ticket (session libre)."""
         try:

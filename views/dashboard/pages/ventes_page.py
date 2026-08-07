@@ -1,10 +1,10 @@
 from datetime import datetime
 
 import qtawesome as qta
-from PyQt6.QtCore import QThread, Qt, QTimer, pyqtSignal
+from PyQt6.QtCore import QDate, QThread, Qt, QTimer, pyqtSignal
 from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton,
-    QFrame, QScrollArea, QProgressBar, QMessageBox,
+    QFrame, QScrollArea, QProgressBar, QMessageBox, QDateEdit,
     QDialog, QComboBox, QDialogButtonBox,
 )
 
@@ -404,6 +404,7 @@ class VentesPage(QWidget):
         self._synchro_thread: SynchronisationMikrotikThread | None = None
         self._detection_thread: DetectionConnexionsThread | None = None
         self._worker_temps: WorkerTempsRestants | None = None
+        self._derniere_index_valide = 0
 
         self._construire_interface()
 
@@ -457,7 +458,8 @@ class VentesPage(QWidget):
         corps_lay.setContentsMargins(0, 0, 0, 0)
         corps_lay.setSpacing(20)
 
-        corps_lay.addWidget(self._card_actifs())
+        self._card_actifs_frame = self._card_actifs()
+        corps_lay.addWidget(self._card_actifs_frame)
         corps_lay.addWidget(self._card_historique())
         corps_lay.addStretch()
 
@@ -465,24 +467,39 @@ class VentesPage(QWidget):
         layout.addWidget(scroll, stretch=1)
 
     def _header(self) -> QHBoxLayout:
+        from datetime import date as _date, timedelta
         h = QHBoxLayout()
         titre = QLabel("Ventes")
         titre.setObjectName("titreDashboard")
         h.addWidget(titre)
         h.addStretch()
 
-        self._badge_ca = QLabel("  Aujourd'hui : 0 Ar  ")
-        self._badge_ca.setObjectName("badgeNeutre")
-        h.addWidget(self._badge_ca)
-        h.addSpacing(12)
+        self._date_combo = QComboBox()
+        self._date_combo.setObjectName("dateComboVentes")
+        self._date_combo.setFixedSize(162, 42)
+        today = _date.today()
+        for i in range(5):
+            d = today - timedelta(days=i)
+            qd = QDate(d.year, d.month, d.day)
+            if i == 0:
+                label = "Aujourd'hui"
+            elif i == 1:
+                label = "Hier"
+            else:
+                label = d.strftime("%d/%m/%Y")
+            self._date_combo.addItem(label, qd)
+        self._date_combo.addItem("Choisir une date...", None)
+        self._date_combo.currentIndexChanged.connect(self._on_date_combo_changed)
+        h.addWidget(self._date_combo)
+        h.addSpacing(10)
 
-        btn = QPushButton("  Vendre un ticket")
-        btn.setObjectName("boutonVendre")
-        btn.setIcon(qta.icon("fa5s.cash-register", color="#ffffff"))
-        btn.setCursor(Qt.CursorShape.PointingHandCursor)
-        btn.setFixedHeight(42)
-        btn.clicked.connect(self._ouvrir_dialog)
-        h.addWidget(btn)
+        self._btn_vendre = QPushButton("  Vendre un ticket")
+        self._btn_vendre.setObjectName("boutonVendre")
+        self._btn_vendre.setIcon(qta.icon("fa5s.cash-register", color="#ffffff"))
+        self._btn_vendre.setCursor(Qt.CursorShape.PointingHandCursor)
+        self._btn_vendre.setFixedHeight(42)
+        self._btn_vendre.clicked.connect(self._ouvrir_dialog)
+        h.addWidget(self._btn_vendre)
         return h
 
     def _rangee_cards(self) -> QHBoxLayout:
@@ -538,63 +555,150 @@ class VentesPage(QWidget):
     # ── Données ──────────────────────────────────────────────────────────
 
     def rafraichir_donnees(self):
-        totaux = self._controller.total_du_jour()
-        ventes = self._controller.obtenir_ventes_du_jour()
+        qdate = self._date_combo.currentData()
+        if qdate is None:
+            return
+        date_str = qdate.toString("yyyy-MM-dd")
+        est_aujourd_hui = qdate == QDate.currentDate()
+
+        totaux    = self._controller.total_du_jour(date_str)
+        ventes_jour = self._controller.obtenir_ventes_du_jour(date_str)
 
         # Stat cards
         self._stat_nb.mettre_a_jour(str(totaux["nb_ventes"]))
         self._stat_ca.mettre_a_jour(f"{int(totaux['ca_total'])} Ar")
-        self._stat_actifs.mettre_a_jour(str(totaux["nb_actifs"]))
-        self._badge_ca.setText(f"  Aujourd'hui : {int(totaux['ca_total'])} Ar  ")
 
-        actifs  = [v for v in ventes if v["actif"] and not v.get("libre")]
-        libres  = [v for v in ventes if v["actif"] and v.get("libre")]
-        tous_actifs = actifs + libres
+        # Section "tickets en cours" + bouton vendre : uniquement pour aujourd'hui
+        if est_aujourd_hui:
+            actives = self._controller.obtenir_ventes_actives()
+            actifs  = [v for v in actives if v["actif"] and not v.get("libre")]
+            libres  = [v for v in actives if v["actif"] and v.get("libre")]
+            tous_actifs = actifs + libres
 
-        self._titre_actifs.setText(f"TICKETS EN COURS  ·  {len(tous_actifs)}")
-        self._titre_historique.setText(f"HISTORIQUE DU JOUR  ·  {len(ventes)}")
+            self._stat_actifs.mettre_a_jour(str(totaux["nb_actifs"]))
+            self._card_actifs_frame.setVisible(True)
+            self._btn_vendre.setVisible(True)
+            self._titre_actifs.setText(f"TICKETS EN COURS  ·  {len(tous_actifs)}")
 
-        # Reconstruire section "actifs"
-        self._vider_layout(self._lay_actifs)
-        self._lignes_actives.clear()
-        self._lignes_libres.clear()
+            self._vider_layout(self._lay_actifs)
+            self._lignes_actives.clear()
+            self._lignes_libres.clear()
 
-        if not tous_actifs:
-            lbl = QLabel("Aucun ticket actif en ce moment.")
-            lbl.setObjectName("loginUtilisateur")
-            lbl.setContentsMargins(20, 14, 20, 14)
-            self._lay_actifs.addWidget(lbl)
+            if not tous_actifs:
+                lbl = QLabel("Aucun ticket actif en ce moment.")
+                lbl.setObjectName("loginUtilisateur")
+                lbl.setContentsMargins(20, 14, 20, 14)
+                self._lay_actifs.addWidget(lbl)
+            else:
+                premiere = True
+                for v in actifs:
+                    if not premiere:
+                        self._lay_actifs.addWidget(_sep())
+                    premiere = False
+                    row = LigneTicketActif(v)
+                    self._lay_actifs.addWidget(row)
+                    self._lignes_actives[v["code"]] = row
+                for v in libres:
+                    if not premiere:
+                        self._lay_actifs.addWidget(_sep())
+                    premiere = False
+                    row = LigneTicketLibre(v)
+                    row.cloture_demande.connect(self._on_cloture)
+                    self._lay_actifs.addWidget(row)
+                    self._lignes_libres[v["code"]] = row
         else:
-            premiere = True
-            for v in actifs:
-                if not premiere:
-                    self._lay_actifs.addWidget(_sep())
-                premiere = False
-                row = LigneTicketActif(v)
-                self._lay_actifs.addWidget(row)
-                self._lignes_actives[v["code"]] = row
-            for v in libres:
-                if not premiere:
-                    self._lay_actifs.addWidget(_sep())
-                premiere = False
-                row = LigneTicketLibre(v)
-                row.cloture_demande.connect(self._on_cloture)
-                self._lay_actifs.addWidget(row)
-                self._lignes_libres[v["code"]] = row
+            self._stat_actifs.mettre_a_jour("—")
+            self._card_actifs_frame.setVisible(False)
+            self._btn_vendre.setVisible(False)
+            self._lignes_actives.clear()
+            self._lignes_libres.clear()
 
-        # Reconstruire section "historique"
+        # Section historique
+        date_affichee = qdate.toString("dd/MM/yyyy")
+        titre_hist = (
+            f"HISTORIQUE DU JOUR  ·  {len(ventes_jour)}"
+            if est_aujourd_hui
+            else f"HISTORIQUE DU {date_affichee}  ·  {len(ventes_jour)}"
+        )
+        self._titre_historique.setText(titre_hist)
+
         self._vider_layout(self._lay_hist)
 
-        if not ventes:
-            lbl = QLabel("Aucune vente aujourd'hui.")
+        if not ventes_jour:
+            lbl = QLabel(
+                "Aucune vente aujourd'hui." if est_aujourd_hui else "Aucune vente ce jour-là."
+            )
             lbl.setObjectName("loginUtilisateur")
             lbl.setContentsMargins(20, 14, 20, 14)
             self._lay_hist.addWidget(lbl)
         else:
-            for i, v in enumerate(ventes):
+            for i, v in enumerate(ventes_jour):
                 if i > 0:
                     self._lay_hist.addWidget(_sep())
                 self._lay_hist.addWidget(LigneVente(v))
+
+    def _on_date_combo_changed(self, index: int):
+        data = self._date_combo.currentData()
+        if data is None:
+            self._choisir_date_autre()
+        else:
+            self._derniere_index_valide = index
+            self.rafraichir_donnees()
+
+    def _choisir_date_autre(self):
+        dlg = QDialog(self)
+        dlg.setWindowTitle("Choisir une date")
+        dlg.setFixedWidth(300)
+        lay = QVBoxLayout(dlg)
+        lay.setContentsMargins(20, 20, 20, 20)
+        lay.setSpacing(14)
+
+        picker = QDateEdit()
+        picker.setCalendarPopup(True)
+        picker.setDisplayFormat("dd/MM/yyyy")
+        picker.setMaximumDate(QDate.currentDate())
+        current_data = self._date_combo.itemData(self._derniere_index_valide)
+        picker.setDate(current_data if current_data else QDate.currentDate())
+        lay.addWidget(picker)
+
+        btns = QDialogButtonBox(
+            QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel
+        )
+        btns.accepted.connect(dlg.accept)
+        btns.rejected.connect(dlg.reject)
+        lay.addWidget(btns)
+
+        if dlg.exec() != QDialog.DialogCode.Accepted:
+            self._date_combo.blockSignals(True)
+            self._date_combo.setCurrentIndex(self._derniere_index_valide)
+            self._date_combo.blockSignals(False)
+            return
+
+        chosen = picker.date()
+
+        # Si la date choisie est déjà dans les 5 fixes, sélectionner directement
+        for i in range(5):
+            if self._date_combo.itemData(i) == chosen:
+                self._date_combo.blockSignals(True)
+                self._date_combo.setCurrentIndex(i)
+                self._date_combo.blockSignals(False)
+                self._derniere_index_valide = i
+                self.rafraichir_donnees()
+                return
+
+        # Sinon : insérer/remplacer l'entrée custom avant "Choisir une date..."
+        self._date_combo.blockSignals(True)
+        sentinel = self._date_combo.count() - 1
+        if self._date_combo.count() > 6:
+            # Supprimer l'ancienne entrée custom (index 5)
+            self._date_combo.removeItem(5)
+            sentinel = self._date_combo.count() - 1
+        label = chosen.toString("dd/MM/yyyy")
+        self._date_combo.insertItem(sentinel, label, chosen)
+        self._date_combo.setCurrentIndex(sentinel)
+        self._date_combo.blockSignals(False)
+        self._derniere_index_valide = sentinel
+        self.rafraichir_donnees()
 
     def _tick_secondes(self):
         """Mise à jour des countdowns (toutes les secondes, sans recréer de widgets)."""

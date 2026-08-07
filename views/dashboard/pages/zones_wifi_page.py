@@ -1,5 +1,5 @@
 import qtawesome as qta
-from PyQt6.QtCore import QPointF, QRectF, QSize, Qt
+from PyQt6.QtCore import QPointF, QRectF, QSize, Qt, QTimer
 from PyQt6.QtGui import QColor, QPainter
 from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton,
@@ -7,6 +7,7 @@ from PyQt6.QtWidgets import (
 )
 
 from controllers.zones.zones_controller import ZonesController
+from services.mikrotik_worker import WorkerZones
 from views.dashboard.components.dialog_profil import DialogProfil
 from views.dashboard.components.dialog_zone import DialogZone
 
@@ -126,7 +127,7 @@ class ZoneCard(QFrame):
         self._on_modifier_profil = on_modifier_profil
         self._on_basculer_statut = on_basculer_statut
         self.setObjectName("zoneCard")
-        self.setProperty("statut", donnees["statut"])
+        self.setProperty("statut", self._statut_bordure())
 
         layout = QVBoxLayout(self)
         layout.setContentsMargins(20, 18, 20, 18)
@@ -135,12 +136,12 @@ class ZoneCard(QFrame):
         # ── En-tête ──────────────────────────────────────────────────
         header = QHBoxLayout()
 
-        cercle = QLabel()
-        cercle.setObjectName(self._style_cercle())
-        cercle.setFixedSize(40, 40)
-        cercle.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        cercle.setPixmap(qta.icon("fa5s.wifi", color=self._couleur_etat()).pixmap(18, 18))
-        header.addWidget(cercle)
+        self._cercle = QLabel()
+        self._cercle.setObjectName(self._style_cercle())
+        self._cercle.setFixedSize(40, 40)
+        self._cercle.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self._cercle.setPixmap(qta.icon("fa5s.wifi", color=self._couleur_etat()).pixmap(18, 18))
+        header.addWidget(self._cercle)
 
         bloc_titre = QVBoxLayout()
         bloc_titre.setSpacing(2)
@@ -153,9 +154,9 @@ class ZoneCard(QFrame):
         header.addLayout(bloc_titre)
         header.addStretch()
 
-        badge = QLabel(self._libelle_badge())
-        badge.setObjectName(self._style_badge())
-        header.addWidget(badge)
+        self._badge = QLabel(self._libelle_badge())
+        self._badge.setObjectName(self._style_badge())
+        header.addWidget(self._badge)
         layout.addLayout(header)
 
         # ── Séparateur ───────────────────────────────────────────────
@@ -289,12 +290,12 @@ class ZoneCard(QFrame):
         btn_config.clicked.connect(lambda: on_configurer(donnees))
         actions.addWidget(btn_config)
 
-        if donnees["connecte"]:
-            btn_action = QPushButton("Déconnecter")
-            btn_action.setObjectName("boutonActionBloquer")
-        else:
-            btn_action = QPushButton("Reconnecter")
-            btn_action.setObjectName("boutonActionActiver")
+        btn_action = QPushButton(
+            "Déconnecter" if donnees["statut"] == "actif" else "Reconnecter"
+        )
+        btn_action.setObjectName(
+            "boutonActionBloquer" if donnees["statut"] == "actif" else "boutonActionActiver"
+        )
         btn_action.setCursor(Qt.CursorShape.PointingHandCursor)
         btn_action.setFixedHeight(32)
         btn_action.clicked.connect(lambda: on_basculer(donnees))
@@ -309,33 +310,76 @@ class ZoneCard(QFrame):
 
         layout.addLayout(actions)
 
+    # ── État de la zone ────────────────────────────────────────────────
+
+    def _etat(self) -> str:
+        """État réel de la zone : connecte / deconnecte / inconnu / inactif."""
+        if self._donnees["statut"] != "actif":
+            return "inactif"
+        if self._donnees.get("connexion_inconnue"):
+            return "inconnu"
+        return "connecte" if self._donnees["connecte"] else "deconnecte"
+
     def _couleur_etat(self) -> str:
-        if self._donnees["connecte"]:
-            return "#4ade80"
-        if self._donnees["statut"] == "erreur":
-            return "#e8c45b"
-        return "#f87171"
+        return {
+            "connecte":   "#4ade80",
+            "deconnecte": "#f87171",
+            "inconnu":    "#e8c45b",
+            "inactif":    "#9a9da8",
+        }[self._etat()]
 
     def _libelle_badge(self) -> str:
-        if self._donnees["connecte"]:
-            return " Connecté "
-        if self._donnees["statut"] == "erreur":
-            return " Erreur "
-        return " Hors ligne "
+        return {
+            "connecte":   " Routeur connecté ",
+            "deconnecte": " Routeur déconnecté ",
+            "inconnu":    " Vérification… ",
+            "inactif":    " Inactif ",
+        }[self._etat()]
 
     def _style_badge(self) -> str:
-        if self._donnees["connecte"]:
-            return "badgeZoneActif"
-        if self._donnees["statut"] == "erreur":
-            return "badgeZoneErreur"
-        return "badgeZoneInactif"
+        return {
+            "connecte":   "badgeZoneActif",
+            "deconnecte": "badgeZoneInactif",
+            "inconnu":    "badgeZoneErreur",
+            "inactif":    "badgeZoneInactif",
+        }[self._etat()]
 
     def _style_cercle(self) -> str:
-        if self._donnees["connecte"]:
-            return "cercleIconeZoneActif"
-        if self._donnees["statut"] == "erreur":
-            return "cercleIconeZoneErreur"
-        return "cercleIconeZoneInactif"
+        return {
+            "connecte":   "cercleIconeZoneActif",
+            "deconnecte": "cercleIconeZoneInactif",
+            "inconnu":    "cercleIconeZoneErreur",
+            "inactif":    "cercleIconeZoneInactif",
+        }[self._etat()]
+
+    def _statut_bordure(self) -> str:
+        """Valeur de la propriété `statut` de la carte (couleur de la bordure)."""
+        return {
+            "connecte":   "actif",
+            "deconnecte": "inactif",
+            "inconnu":    "erreur",
+            "inactif":    "inactif",
+        }[self._etat()]
+
+    def mettre_a_jour_connexion(self, connecte: bool):
+        """Met à jour l'affichage avec le dernier état de connexion réel."""
+        self._donnees["connecte"] = connecte
+        self._donnees["connexion_inconnue"] = False
+
+        self._cercle.setPixmap(
+            qta.icon("fa5s.wifi", color=self._couleur_etat()).pixmap(18, 18)
+        )
+        self._badge.setText(self._libelle_badge())
+
+        for widget, cle in ((self._badge, self._style_badge()),
+                            (self._cercle, self._style_cercle())):
+            widget.setObjectName(cle)
+            widget.style().unpolish(widget)
+            widget.style().polish(widget)
+
+        self.setProperty("statut", self._statut_bordure())
+        self.style().unpolish(self)
+        self.style().polish(self)
 
     @staticmethod
     def _sep() -> QFrame:
@@ -363,7 +407,30 @@ class ZonesWifiPage(QWidget):
     def __init__(self, zones_controller: ZonesController, parent=None):
         super().__init__(parent)
         self._controller = zones_controller
+        self._cartes: dict[int, ZoneCard] = {}
+        self._worker: WorkerZones | None = None
+
         self._construire_interface()
+
+        # Vérification périodique de l'état réel de chaque routeur
+        self._timer = QTimer(self)
+        self._timer.setInterval(15_000)
+        self._timer.timeout.connect(self._lancer_verification)
+        self._timer.start()
+        self._lancer_verification()
+
+    def _lancer_verification(self):
+        if self._worker and self._worker.isRunning():
+            return
+        self._worker = WorkerZones(self._controller, parent=self)
+        self._worker.connexions_prete.connect(self._mettre_a_jour_connexions)
+        self._worker.start()
+
+    def _mettre_a_jour_connexions(self, etats: dict):
+        for router_id, connecte in etats.items():
+            carte = self._cartes.get(router_id)
+            if carte is not None:
+                carte.mettre_a_jour_connexion(connecte)
 
     def _construire_interface(self):
         self._layout = QVBoxLayout(self)
@@ -379,6 +446,7 @@ class ZonesWifiPage(QWidget):
 
     def _remplir(self):
         self._vider_layout()
+        self._cartes.clear()
 
         # ── Header ──────────────────────────────────────────────────────
         header = QHBoxLayout()
@@ -417,14 +485,16 @@ class ZonesWifiPage(QWidget):
         else:
             for zone in zones:
                 profils = self._controller.obtenir_profils(zone["id"])
-                contenu_layout.addWidget(ZoneCard(
+                carte = ZoneCard(
                     zone, profils,
                     self._configurer_zone,
                     self._basculer_connexion,
                     self._supprimer_zone,
                     self._ouvrir_dialog_profil,
                     self._basculer_statut_profil,
-                ))
+                )
+                self._cartes[zone["id"]] = carte
+                contenu_layout.addWidget(carte)
 
         contenu_layout.addStretch()
         scroll.setWidget(contenu)

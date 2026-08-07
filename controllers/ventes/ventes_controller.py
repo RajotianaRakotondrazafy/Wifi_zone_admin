@@ -38,57 +38,62 @@ class VentesController:
             )
         return [profil.to_dict() for profil in profils]
 
-    def obtenir_ventes_du_jour(self) -> list[dict]:
-        now = datetime.now()
-        ventes_brutes = self._sale_repo.get_ventes_du_jour(now.date().isoformat())
+    def obtenir_ventes_du_jour(self, date: str | None = None) -> list[dict]:
+        date = date or datetime.now().date().isoformat()
+        ventes_brutes = self._sale_repo.get_ventes_du_jour(date)
+        return [self._construire_vente(v) for v in ventes_brutes]
 
-        ventes = []
-        for v in ventes_brutes:
-            heure_dt = v["date_vente"]
-            if isinstance(heure_dt, str):
-                heure_dt = datetime.fromisoformat(heure_dt)
-            duree_min = v["duree_session_max"]
+    def obtenir_ventes_actives(self) -> list[dict]:
+        """Tous les tickets encore actifs, quel que soit le jour de vente."""
+        ventes_brutes = self._sale_repo.get_ventes_actives()
+        return [self._construire_vente(v) for v in ventes_brutes]
 
-            premiere = v.get("date_premiere_connexion")
-            if isinstance(premiere, str):
-                premiere = datetime.fromisoformat(premiere)
-            demarre = premiere is not None
+    @staticmethod
+    def _construire_vente(v: dict) -> dict:
+        """Transforme une ligne de vente brute en dict prêt pour l'UI."""
+        heure_dt = v["date_vente"]
+        if isinstance(heure_dt, str):
+            heure_dt = datetime.fromisoformat(heure_dt)
+        duree_min = v["duree_session_max"]
 
-            if duree_min == 0:
-                # Session libre : active jusqu'à clôture (statut 'epuise')
-                est_cloturee = v.get("statut") in ("epuise", "expire")
-                ventes.append({
-                    "heure_dt":             heure_dt,
-                    "heure":                heure_dt.strftime("%H:%M"),
-                    "profil":               v["profil_nom"],
-                    "profil_duree_min":     0,
-                    "code":                 v["code"],
-                    "methode":              v["methode_paiement"],
-                    "montant":              v["montant"],
-                    "demarre":              demarre,
-                    "premiere_connexion_dt": premiere,
-                    "expiration_dt":        None,
-                    "actif":                not est_cloturee,
-                    "libre":                not est_cloturee,
-                })
-            else:
-                expiration_dt = premiere + timedelta(minutes=duree_min) if demarre else None
-                ventes.append({
-                    "heure_dt":             heure_dt,
-                    "heure":                heure_dt.strftime("%H:%M"),
-                    "profil":               v["profil_nom"],
-                    "profil_duree_min":     duree_min,
-                    "code":                 v["code"],
-                    "methode":              v["methode_paiement"],
-                    "montant":              v["montant"],
-                    "demarre":              demarre,
-                    "premiere_connexion_dt": premiere,
-                    "expiration_dt":        expiration_dt,
-                    "actif":                not demarre or (expiration_dt is not None and expiration_dt > now),
-                    "libre":                False,
-                })
+        premiere = v.get("date_premiere_connexion")
+        if isinstance(premiere, str):
+            premiere = datetime.fromisoformat(premiere)
+        demarre = premiere is not None
 
-        return ventes
+        if duree_min == 0:
+            # Session libre : active jusqu'à clôture (statut 'epuise')
+            est_cloturee = v.get("statut") in ("epuise", "expire")
+            return {
+                "heure_dt":              heure_dt,
+                "heure":                 heure_dt.strftime("%H:%M"),
+                "profil":                v["profil_nom"],
+                "profil_duree_min":      0,
+                "code":                  v["code"],
+                "methode":               v["methode_paiement"],
+                "montant":               v["montant"],
+                "demarre":               demarre,
+                "premiere_connexion_dt": premiere,
+                "expiration_dt":         None,
+                "actif":                 not est_cloturee,
+                "libre":                 not est_cloturee,
+            }
+
+        expiration_dt = premiere + timedelta(minutes=duree_min) if demarre else None
+        return {
+            "heure_dt":              heure_dt,
+            "heure":                 heure_dt.strftime("%H:%M"),
+            "profil":                v["profil_nom"],
+            "profil_duree_min":      duree_min,
+            "code":                  v["code"],
+            "methode":               v["methode_paiement"],
+            "montant":               v["montant"],
+            "demarre":               demarre,
+            "premiere_connexion_dt": premiere,
+            "expiration_dt":         expiration_dt,
+            "actif":                 not demarre or (expiration_dt is not None and expiration_dt > datetime.now()),
+            "libre":                 False,
+        }
 
     @staticmethod
     def calculer_cout_libre(uptime_sec: float) -> int:
@@ -270,6 +275,7 @@ class VentesController:
                 return {"ok": False, "message": "Ticket introuvable."}
 
             profil = self._profile_repo.obtenir_par_id(ticket.profile_id)
+            
             if profil is None:
                 return {"ok": False, "message": "Profil introuvable."}
 
@@ -345,5 +351,10 @@ class VentesController:
         finally:
             svc.deconnecter()
 
-    def total_du_jour(self) -> dict:
-        return self._sale_repo.agreger_par_date(datetime.now().date().isoformat())
+    def total_du_jour(self, date: str | None = None) -> dict:
+        date = date or datetime.now().date().isoformat()
+        totaux = self._sale_repo.agreger_par_date(date)
+        if date == datetime.now().date().isoformat():
+            # Pour aujourd'hui, nb_actifs = tous les tickets actifs (multi-jours)
+            totaux["nb_actifs"] = len([v for v in self.obtenir_ventes_actives() if v["actif"]])
+        return totaux
