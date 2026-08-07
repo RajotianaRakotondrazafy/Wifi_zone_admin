@@ -1,9 +1,19 @@
-PyQt6
-SQLAlchemy
-alembic
-routeros-api
-python-dotenv
-bcrypt
-qtawesome
-watchdog
-routeros_api
+# Interface graphique
+PyQt6==6.11.0
+PyQt6-Qt6==6.11.1
+PyQt6_sip==13.11.1
+qtawesome==1.4.2
+
+# MikroTik RouterOS API
+routeros-api==0.21.0
+routeros_api==0.21.0
+
+# Base de données & configuration
+python-dotenv==1.2.2
+
+# Sécurité
+bcrypt==5.0.0
+cryptography==50.0.0
+
+# Surveillance fichiers (hot-reload dev)
+watchdog==6.0.0

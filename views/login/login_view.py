@@ -1,6 +1,6 @@
 import qtawesome as qta
 
-from PyQt6.QtCore import Qt, QEvent, pyqtSignal, QSize
+from PyQt6.QtCore import Qt, QEvent, QTimer, pyqtSignal, QSize
 from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout,
     QLabel, QLineEdit, QPushButton, QFrame,
@@ -231,12 +231,52 @@ class LoginView(QWidget):
 
         try:
             user: User | None = self.auth_controller.authentifier(login, mot_de_passe)
+        except RuntimeError as exc:
+            self._afficher_erreur(str(exc))
+            restant = self.auth_controller.restant_blocage(login)
+            if restant > 0:
+                self._demarrer_countdown(login, restant)
+            else:
+                self.bouton_connexion.setEnabled(True)
+            self.champ_mot_de_passe.clear()
+            return
         finally:
-            self.bouton_connexion.setEnabled(True)
+            pass  # activation gérée ci-dessus ou après succès
 
         if user is not None:
+            self.bouton_connexion.setEnabled(True)
             self.connexion_reussie.emit(user)
         else:
-            self.label_erreur.setVisible(True)
+            self.bouton_connexion.setEnabled(True)
+            self._afficher_erreur("Identifiant ou mot de passe incorrect.")
             self.champ_mot_de_passe.clear()
+            self.champ_mot_de_passe.setFocus()
+
+    def _afficher_erreur(self, message: str):
+        self.label_erreur.setText(message)
+        self.label_erreur.setVisible(True)
+        self.champ_mot_de_passe.setFocus()
+
+    def _demarrer_countdown(self, login: str, secondes: int):
+        """Désactive le bouton et affiche un compte à rebours pendant le blocage."""
+        self._countdown_restant = secondes
+        self._countdown_login   = login
+
+        self._timer_countdown = QTimer(self)
+        self._timer_countdown.setInterval(1000)
+        self._timer_countdown.timeout.connect(self._tick_countdown)
+        self._timer_countdown.start()
+        self._tick_countdown()
+
+    def _tick_countdown(self):
+        restant = self.auth_controller.restant_blocage(self._countdown_login)
+        if restant > 0:
+            self._afficher_erreur(
+                f"Trop de tentatives. Réessayez dans {restant} seconde(s)."
+            )
+            self.bouton_connexion.setEnabled(False)
+        else:
+            self._timer_countdown.stop()
+            self.bouton_connexion.setEnabled(True)
+            self.label_erreur.setVisible(False)
             self.champ_mot_de_passe.setFocus()

@@ -3,25 +3,18 @@ import os
 
 load_dotenv()
 
-DATABASE_URL = os.getenv("DATABASE_URL")
-
 _BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
+# ── Base de données ───────────────────────────────────────────────────────────
 DATABASE_PATH = os.getenv(
     "DATABASE_PATH",
     os.path.join(_BASE_DIR, "database", "app.db"),
 )
 
-MIKROTIK_HOST = os.getenv("MIKROTIK_HOST")
-MIKROTIK_PORT = int(os.getenv("MIKROTIK_PORT"))
-
-MIKROTIK_USER = os.getenv("MIKROTIK_USER")
-MIKROTIK_PASSWORD = os.getenv("MIKROTIK_PASSWORD")
-
-# Tarification : prix par heure en Ariary
-TARIFICATION_PRIX_PAR_HEURE = int(os.getenv("TARIFICATION_PRIX_PAR_HEURE", "1000"))
-# Débit par défaut en Mbps
+# ── Tarification ─────────────────────────────────────────────────────────────
+# Valeurs par défaut utilisées si la table `parametres` ne contient pas
+# encore les clés correspondantes (premier démarrage, ou .env personnalisé).
+TARIFICATION_PRIX_PAR_HEURE    = int(os.getenv("TARIFICATION_PRIX_PAR_HEURE",    "1000"))
 TARIFICATION_DEBIT_DEFAUT_MBPS = int(os.getenv("TARIFICATION_DEBIT_DEFAUT_MBPS", "2"))
-# Session libre : minimum facturable
-TARIFICATION_LIBRE_MIN_AR  = int(os.getenv("TARIFICATION_LIBRE_MIN_AR",  "500"))
-TARIFICATION_LIBRE_MIN_MIN = int(os.getenv("TARIFICATION_LIBRE_MIN_MIN", "30"))
+TARIFICATION_LIBRE_MIN_AR      = int(os.getenv("TARIFICATION_LIBRE_MIN_AR",      "500"))
+TARIFICATION_LIBRE_MIN_MIN     = int(os.getenv("TARIFICATION_LIBRE_MIN_MIN",     "30"))
