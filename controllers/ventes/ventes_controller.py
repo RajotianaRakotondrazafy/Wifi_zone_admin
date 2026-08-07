@@ -10,6 +10,7 @@ from repositories.hotspot_profile_repository import HotspotProfileRepository
 from repositories.ticket_repository import TicketRepository
 from repositories.sale_repository import SaleRepository
 from repositories.router_repository import RouterRepository
+from repositories.parametres_repository import ParametresRepository
 from services.mikrotik_service import MikroTikErreur, MikroTikService
 
 from config.settings import (
@@ -26,6 +27,7 @@ class VentesController:
         self._ticket_repo = TicketRepository()
         self._sale_repo = SaleRepository()
         self._router_repo = RouterRepository()
+        self._parametres_repo = ParametresRepository()
 
     def obtenir_profils(self, router_id: int | None = None) -> list[dict]:
         if router_id is not None:
@@ -95,13 +97,15 @@ class VentesController:
             "libre":                 False,
         }
 
-    @staticmethod
-    def calculer_cout_libre(uptime_sec: float) -> int:
-        """Calcule le coût d'une session libre selon la durée effective."""
+    def calculer_cout_libre(self, uptime_sec: float) -> int:
+        """Calcule le coût d'une session libre selon la durée effective (tarifs en DB)."""
+        min_ar  = self._parametres_repo.get_int("tarif_libre_min_ar",   TARIFICATION_LIBRE_MIN_AR)
+        min_min = self._parametres_repo.get_int("tarif_libre_min_min",  TARIFICATION_LIBRE_MIN_MIN)
+        par_h   = self._parametres_repo.get_int("tarif_prix_par_heure", TARIFICATION_PRIX_PAR_HEURE)
         minutes = uptime_sec / 60
-        if minutes < TARIFICATION_LIBRE_MIN_MIN:
-            return TARIFICATION_LIBRE_MIN_AR
-        return round((minutes / 60) * TARIFICATION_PRIX_PAR_HEURE)
+        if minutes < min_min:
+            return min_ar
+        return round((minutes / 60) * par_h)
 
     def cloture_session_libre(
         self,

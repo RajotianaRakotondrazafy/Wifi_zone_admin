@@ -3,6 +3,7 @@ from PyQt6.QtWidgets import QWidget, QHBoxLayout, QStackedWidget
 
 from controllers.blocages.blocages_controller import BlocagesController
 from controllers.dashboard.dashboard_controller import DashboardController
+from controllers.parametres.parametres_controller import ParametresController
 from controllers.statistiques.statistiques_controller import StatistiquesController
 from controllers.utilisateurs.utilisateurs_controller import UtilisateursController
 from controllers.ventes.ventes_controller import VentesController
@@ -31,6 +32,7 @@ class DashboardView(QWidget):
         self._utilisateurs_controller = UtilisateursController()
         self._statistiques_controller = StatistiquesController()
         self._blocages_controller     = BlocagesController()
+        self._parametres_controller   = ParametresController()
 
         self.setWindowTitle("E-Konnekta — Tableau de bord")
         self.setMinimumSize(1100, 680)
@@ -61,7 +63,7 @@ class DashboardView(QWidget):
             "Zones WiFi":      ZonesWifiPage(self._zones_controller),
             "Statistiques":    StatistiquesPage(self._statistiques_controller),
             "Blocages":        BlocagesPage(self._blocages_controller),
-            "Paramètres":      ParametresPage(),
+            "Paramètres":      ParametresPage(self._parametres_controller),
         }
 
         for page in self._pages.values():
