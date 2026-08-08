@@ -1,5 +1,6 @@
-import sys, logging
+import sys, os, logging
 from PyQt6.QtWidgets import QApplication
+from PyQt6.QtGui import QIcon
 from database.connection import DatabaseConnection
 from database.init_db import initialiser_base
 from controllers.auth.auth_controller import AuthController
@@ -9,11 +10,16 @@ from views.dashboard.dashboard_view import DashboardView
 from models.user import User
 from services.session import charger_session
 
+_APP_DIR = (
+    os.path.dirname(sys.executable)
+    if getattr(sys, "frozen", False)
+    else os.path.dirname(os.path.abspath(__file__))
+)
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
     handlers=[
-        logging.FileHandler("app.log", encoding="utf-8"),
+        logging.FileHandler(os.path.join(_APP_DIR, "app.log"), encoding="utf-8"),
         logging.StreamHandler(sys.stdout),
     ],
 )
@@ -23,6 +29,14 @@ logger = logging.getLogger(__name__)
 class ApplicationManager:
     def __init__(self):
         self.app = QApplication(sys.argv)
+
+        _logo = os.path.join(
+            getattr(sys, "_MEIPASS", os.path.dirname(os.path.abspath(__file__))),
+            "assets", "logo.png",
+        )
+        if os.path.exists(_logo):
+            self.app.setWindowIcon(QIcon(_logo))
+
         self.auth_controller = AuthController()
         self.dashboard_controller = DashboardController()
 
@@ -67,12 +81,25 @@ class ApplicationManager:
         self.afficher_login()
 
 
+def _initialiser_admin_si_absent() -> None:
+    from repositories.user_repository import UserRepository
+    from scripts.creer_admin import creer_ou_mettre_a_jour_admin
+    try:
+        if not UserRepository().lister_tous():
+            logger.info("Premier démarrage : création du compte admin par défaut.")
+            creer_ou_mettre_a_jour_admin("admin@Ekonnekta", "admin.ekonnekta.2025")
+            logger.info("Compte admin créé : admin@Ekonnekta / admin.ekonnekta.2025")
+    except Exception as e:
+        logger.warning(f"Impossible de créer le compte admin par défaut : {e}")
+
+
 def main():
     logger.info("Démarrage de l'application WiFi-Zone Manager...")
 
     try:
         DatabaseConnection()
         initialiser_base()
+        _initialiser_admin_si_absent()
         logger.info("Base de données prête.")
     except Exception as e:
         logger.critical(f"Erreur critique lors de l'initialisation de la base : {e}")

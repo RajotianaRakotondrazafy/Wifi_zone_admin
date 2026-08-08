@@ -3,9 +3,11 @@ import glob
 import sqlite3
 
 from database.connection import DatabaseConnection
+from config.settings import _chemin_ressource
+
 
 class MigrationRunner:
-    _MIGRATIONS_DIR = os.path.join(os.path.dirname(__file__), "migrations")
+    _MIGRATIONS_DIR = _chemin_ressource(os.path.join("database", "migrations"))
 
     def __init__(self) -> None:
         self._conn: sqlite3.Connection = DatabaseConnection().get_connection()

@@ -37,7 +37,7 @@ def creer_ou_mettre_a_jour_admin(login: str, mot_de_passe_clair: str, nom: str =
  
  
 if __name__ == "__main__":
-    LOGIN = "admin@wifizone.mg"
-    MOT_DE_PASSE = "admin123" 
+    LOGIN = "admin@Ekonnekta"
+    MOT_DE_PASSE = "admin.ekonnekta.2025" 
  
     creer_ou_mettre_a_jour_admin(LOGIN, MOT_DE_PASSE)

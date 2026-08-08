@@ -2,8 +2,9 @@ import os
 import re
 from pathlib import Path
 
+from config.settings import _chemin_ressource
 
-CHEMIN_STYLES = Path(__file__).resolve().parent.parent / "assets" / "styles"
+CHEMIN_STYLES = Path(_chemin_ressource(os.path.join("assets", "styles")))
 CHEMIN_THEME = CHEMIN_STYLES / "dark_theme.qss"
 
 _IMPORT = re.compile(r'@import\s+["\']([^"\']+)["\']\s*;')
