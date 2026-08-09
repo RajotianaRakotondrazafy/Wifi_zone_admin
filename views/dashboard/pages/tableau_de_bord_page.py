@@ -53,6 +53,7 @@ class TableauDeBordPage(QWidget):
         layout.setSpacing(24)
         layout.addLayout(self._construire_header())
         layout.addLayout(self._construire_rangee_stats())
+        layout.addLayout(self._construire_rangee_ventes())
         layout.addWidget(self._construire_card_sessions(), stretch=1)
 
     def _construire_header(self) -> QHBoxLayout:
@@ -83,12 +84,22 @@ class TableauDeBordPage(QWidget):
     def _construire_rangee_stats(self) -> QHBoxLayout:
         r = QHBoxLayout()
         r.setSpacing(16)
-        self._card_appareils  = StatCard("fa5s.laptop",     "Appareils connectés", "—",   "en ligne")
-        self._card_debit_down = StatCard("fa5s.arrow-down", "Débit descendant",    "—",   "")
-        self._card_debit_up   = StatCard("fa5s.arrow-up",   "Débit montant",       "—",   "")
-        self._card_latence    = StatCard("fa5s.signal",      "Latence",             "—",   "ms")
+        self._card_appareils  = StatCard("fa5s.laptop",     "Appareils connectés", "—", "en ligne")
+        self._card_debit_down = StatCard("fa5s.arrow-down", "Débit descendant",    "—", "")
+        self._card_debit_up   = StatCard("fa5s.arrow-up",   "Débit montant",       "—", "")
+        self._card_latence    = StatCard("fa5s.signal",      "Latence",             "—", "ms")
         for c in (self._card_appareils, self._card_debit_down, self._card_debit_up, self._card_latence):
             r.addWidget(c)
+        return r
+
+    def _construire_rangee_ventes(self) -> QHBoxLayout:
+        r = QHBoxLayout()
+        r.setSpacing(16)
+        self._card_nb_ventes = StatCard("fa5s.receipt", "Ventes du jour",  "—", "tickets")
+        self._card_ca        = StatCard("fa5s.coins",   "CA du jour",      "—", "Ar")
+        for c in (self._card_nb_ventes, self._card_ca):
+            r.addWidget(c)
+        r.addStretch()
         return r
 
     def _construire_card_sessions(self) -> QFrame:
@@ -168,6 +179,13 @@ class TableauDeBordPage(QWidget):
             self._card_latence.mettre_a_jour(str(lat), "ms")
         else:
             self._card_latence.mettre_a_jour("—", "ms")
+
+        # ── KPIs commerciaux ────────────────────────────────────────
+        ventes = donnees.get("ventes", {})
+        self._card_nb_ventes.mettre_a_jour(str(ventes.get("nb_ventes", 0)), "tickets")
+        ca = ventes.get("ca_total", 0)
+        ca_str = f"{ca:,}".replace(",", " ")
+        self._card_ca.mettre_a_jour(ca_str, "Ar")
 
         # ── Titre section sessions ──────────────────────────────────
         self._titre_sessions.setText(

@@ -2,7 +2,7 @@ import qtawesome as qta
 from PyQt6.QtCore import Qt
 from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton,
-    QFrame, QLineEdit, QScrollArea, QMessageBox,
+    QFrame, QLineEdit, QScrollArea, QMessageBox, QFileDialog,
 )
 
 from controllers.parametres.parametres_controller import ParametresController
@@ -39,6 +39,7 @@ class ParametresPage(QWidget):
 
         cl.addWidget(self._section_tarification())
         cl.addWidget(self._section_application())
+        cl.addWidget(self._section_sauvegarde())
 
         # ── Bouton Sauvegarder ───────────────────────────────────────────
         btn = QPushButton("  Sauvegarder")
@@ -131,6 +132,49 @@ class ParametresPage(QWidget):
 
         return card
 
+    def _section_sauvegarde(self) -> QFrame:
+        card = QFrame()
+        card.setObjectName("sectionParametres")
+        lay = QVBoxLayout(card)
+        lay.setContentsMargins(20, 16, 20, 20)
+        lay.setSpacing(14)
+
+        lay.addWidget(self._entete("fa5s.database", "SAUVEGARDE"))
+        lay.addWidget(self._separateur())
+
+        lbl_aide = QLabel(
+            "Crée une copie de la base de données (tickets, ventes, utilisateurs, "
+            "routeurs). Une sauvegarde automatique est effectuée toutes les 24h "
+            "dans le dossier backups/ (7 fichiers conservés)."
+        )
+        lbl_aide.setObjectName("descriptionZone")
+        lbl_aide.setWordWrap(True)
+        lay.addWidget(lbl_aide)
+
+        # Dernière sauvegarde automatique
+        self._lbl_derniere_auto = QLabel(self._derniere_sauvegarde_auto())
+        self._lbl_derniere_auto.setObjectName("descriptionZone")
+        lay.addWidget(self._lbl_derniere_auto)
+
+        ligne = QHBoxLayout()
+        ligne.setSpacing(12)
+
+        btn_backup = QPushButton("  Sauvegarder la base")
+        btn_backup.setObjectName("boutonSauvegarder")
+        btn_backup.setIcon(qta.icon("fa5s.download", color="#ffffff"))
+        btn_backup.setCursor(Qt.CursorShape.PointingHandCursor)
+        btn_backup.setFixedHeight(40)
+        btn_backup.clicked.connect(self._faire_backup)
+        ligne.addWidget(btn_backup)
+
+        self._lbl_derniere_sauvegarde = QLabel("Aucune sauvegarde effectuée.")
+        self._lbl_derniere_sauvegarde.setObjectName("descriptionZone")
+        ligne.addWidget(self._lbl_derniere_sauvegarde)
+        ligne.addStretch()
+
+        lay.addLayout(ligne)
+        return card
+
     # ── Helpers UI ────────────────────────────────────────────────────────
 
     def _entete(self, icone_id: str, titre: str) -> QWidget:
@@ -160,6 +204,46 @@ class ParametresPage(QWidget):
         return lbl
 
     # ── Données ───────────────────────────────────────────────────────────
+
+    @staticmethod
+    def _derniere_sauvegarde_auto() -> str:
+        import glob, os
+        from config.settings import _chemin_donnees
+        dossier = _chemin_donnees("backups")
+        fichiers = sorted(glob.glob(os.path.join(dossier, "auto_*.db")))
+        if not fichiers:
+            return "Sauvegarde automatique : aucune encore effectuée."
+        nom = os.path.basename(fichiers[-1])  # auto_20260808_103000.db
+        try:
+            ts = nom.replace("auto_", "").replace(".db", "")
+            from datetime import datetime
+            dt = datetime.strptime(ts, "%Y%m%d_%H%M%S")
+            return f"Dernière sauvegarde auto : {dt.strftime('%d/%m/%Y à %H:%M')}"
+        except ValueError:
+            return f"Dernière sauvegarde auto : {nom}"
+
+    def _faire_backup(self):
+        from datetime import datetime
+        nom_suggere = f"ekonnekta_backup_{datetime.now().strftime('%Y%m%d_%H%M%S')}.db"
+        chemin, _ = QFileDialog.getSaveFileName(
+            self,
+            "Sauvegarder la base de données",
+            nom_suggere,
+            "Base SQLite (*.db);;Tous les fichiers (*)",
+        )
+        if not chemin:
+            return
+        try:
+            chemin_final = self._controller.sauvegarder_base(chemin)
+            self._lbl_derniere_sauvegarde.setText(
+                f"Dernière sauvegarde : {datetime.now().strftime('%d/%m/%Y %H:%M')}"
+            )
+            QMessageBox.information(
+                self, "Sauvegarde réussie",
+                f"Base de données sauvegardée :\n{chemin_final}",
+            )
+        except Exception as exc:
+            QMessageBox.critical(self, "Erreur", f"Échec de la sauvegarde :\n{exc}")
 
     def _charger_valeurs(self):
         valeurs = self._controller.charger()

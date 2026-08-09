@@ -68,10 +68,11 @@ class DialogVente(QDialog):
 
     def __init__(self, profils: list[dict], vendeur_id: int, parent=None):
         super().__init__(parent)
-        self._profils      = profils
-        self._vendeur_id   = vendeur_id
-        self._methode      = "especes"
-        self._vitesse_idx  = 0
+        self._profils         = profils
+        self._vendeur_id      = vendeur_id
+        self._methode         = "especes"
+        self._vitesse_idx     = 0
+        self._ticket_en_cours: dict = {}
 
         self.setWindowTitle("Vendre un ticket")
         self.setModal(True)
@@ -427,13 +428,13 @@ class DialogVente(QDialog):
         h_act = QHBoxLayout()
         h_act.setSpacing(10)
 
-        btn_imp = QPushButton("  Imprimer")
-        btn_imp.setObjectName("boutonActionHistorique")
-        btn_imp.setIcon(qta.icon("fa5s.print", color="#5c5f6e"))
-        btn_imp.setFixedHeight(44)
-        btn_imp.setEnabled(False)
-        btn_imp.setToolTip("Impression — bientôt disponible")
-        h_act.addWidget(btn_imp)
+        self._btn_imp = QPushButton("  Imprimer")
+        self._btn_imp.setObjectName("boutonActionHistorique")
+        self._btn_imp.setIcon(qta.icon("fa5s.print", color="#5c5f6e"))
+        self._btn_imp.setFixedHeight(44)
+        self._btn_imp.setCursor(Qt.CursorShape.PointingHandCursor)
+        self._btn_imp.clicked.connect(self._imprimer)
+        h_act.addWidget(self._btn_imp)
         h_act.addStretch()
 
         btn_nouveau = QPushButton("  Nouveau")
@@ -510,6 +511,7 @@ class DialogVente(QDialog):
             self._lbl_code.setText(code)
             self._lbl_mdp.setText(password)
             self._lbl_recap.setText(recap)
+            self._ticket_en_cours = ticket
             self.ticket_vendu.emit(ticket)
             self._stacked.setCurrentIndex(1)
             return
@@ -533,6 +535,7 @@ class DialogVente(QDialog):
             self._lbl_code.setText(code)
             self._lbl_mdp.setText(password)
             self._lbl_recap.setText(recap)
+            self._ticket_en_cours = ticket
             self.ticket_vendu.emit(ticket)
             self._stacked.setCurrentIndex(1)
             return
@@ -578,8 +581,26 @@ class DialogVente(QDialog):
         self._lbl_code.setText(code)
         self._lbl_mdp.setText(password)
         self._lbl_recap.setText(recap)
+        self._ticket_en_cours = ticket
         self.ticket_vendu.emit(ticket)
         self._stacked.setCurrentIndex(1)
+
+    def _imprimer(self):
+        if not self._ticket_en_cours:
+            return
+        from datetime import datetime as _dt
+        from services.impression_service import imprimer_ticket
+        data = {
+            "code":     self._ticket_en_cours.get("code", ""),
+            "password": self._ticket_en_cours.get("password", ""),
+            "profil":   self._ticket_en_cours.get("profil", ""),
+            "duree_min": self._ticket_en_cours.get("duree_session_max", 0),
+            "montant":  self._ticket_en_cours.get("prix", 0),
+            "methode":  self._ticket_en_cours.get("methode", ""),
+            "date":     _dt.now().strftime("%d/%m/%Y"),
+            "heure":    _dt.now().strftime("%H:%M"),
+        }
+        imprimer_ticket(data, parent=self)
 
     def _reinitialiser(self):
         self._combo.setCurrentIndex(0)

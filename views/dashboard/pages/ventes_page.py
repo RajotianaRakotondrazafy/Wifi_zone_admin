@@ -1,11 +1,11 @@
 from datetime import datetime
 
 import qtawesome as qta
-from PyQt6.QtCore import QDate, QThread, Qt, QTimer, pyqtSignal
+from PyQt6.QtCore import QDate, QThread, Qt, QTimer, pyqtSignal, QSize
 from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton,
     QFrame, QScrollArea, QProgressBar, QMessageBox, QDateEdit,
-    QDialog, QComboBox, QDialogButtonBox,
+    QDialog, QComboBox, QDialogButtonBox, QFileDialog,
 )
 
 from controllers.ventes.ventes_controller import VentesController
@@ -334,6 +334,8 @@ class LigneTicketLibre(QWidget):
 class LigneVente(QWidget):
     """Ligne d'une vente dans l'historique du jour (actif ou expiré)."""
 
+    imprimer_demande = pyqtSignal(str)   # émet le code ticket
+
     def __init__(self, vente: dict, parent=None):
         super().__init__(parent)
         self.setObjectName("ligneVente")
@@ -390,6 +392,19 @@ class LigneVente(QWidget):
         badge_s.setFixedWidth(62)
         badge_s.setAlignment(Qt.AlignmentFlag.AlignCenter)
         lay.addWidget(badge_s)
+
+        lay.addSpacing(8)
+
+        # Bouton imprimer
+        btn_print = QPushButton()
+        btn_print.setIcon(qta.icon("fa5s.print", color="#5c5f6e"))
+        btn_print.setIconSize(QSize(14, 14))
+        btn_print.setObjectName("boutonToggleMdp")
+        btn_print.setFixedSize(32, 32)
+        btn_print.setCursor(Qt.CursorShape.PointingHandCursor)
+        btn_print.setToolTip("Imprimer ce ticket")
+        btn_print.clicked.connect(lambda: self.imprimer_demande.emit(vente["code"]))
+        lay.addWidget(btn_print)
 
 
 # ── Page Ventes ──────────────────────────────────────────────────────────────
@@ -492,6 +507,15 @@ class VentesPage(QWidget):
         self._date_combo.currentIndexChanged.connect(self._on_date_combo_changed)
         h.addWidget(self._date_combo)
         h.addSpacing(10)
+
+        btn_csv = QPushButton("  Exporter CSV")
+        btn_csv.setObjectName("boutonActionLimiter")
+        btn_csv.setIcon(qta.icon("fa5s.file-csv", color="#ffffff"))
+        btn_csv.setCursor(Qt.CursorShape.PointingHandCursor)
+        btn_csv.setFixedHeight(42)
+        btn_csv.clicked.connect(self._exporter_csv)
+        h.addWidget(btn_csv)
+        h.addSpacing(8)
 
         self._btn_vendre = QPushButton("  Vendre un ticket")
         self._btn_vendre.setObjectName("boutonVendre")
@@ -635,7 +659,9 @@ class VentesPage(QWidget):
             for i, v in enumerate(ventes_jour):
                 if i > 0:
                     self._lay_hist.addWidget(_sep())
-                self._lay_hist.addWidget(LigneVente(v))
+                ligne_v = LigneVente(v)
+                ligne_v.imprimer_demande.connect(self._imprimer_ticket_par_code)
+                self._lay_hist.addWidget(ligne_v)
 
     def _on_date_combo_changed(self, index: int):
         data = self._date_combo.currentData()
@@ -724,6 +750,48 @@ class VentesPage(QWidget):
                 self._lignes_actives[code].sync_mikrotik(secondes)
 
     # ── Actions ──────────────────────────────────────────────────────────
+
+    def _imprimer_ticket_par_code(self, code: str):
+        data = self._controller.obtenir_details_impression(code)
+        if data is None:
+            QMessageBox.warning(self, "Introuvable", f"Impossible de trouver les données du ticket {code}.")
+            return
+        self._imprimer_ticket(data)
+
+    def _imprimer_ticket(self, data: dict):
+        from services.impression_service import imprimer_ticket
+        try:
+            imprimer_ticket(data, parent=self)
+        except Exception as exc:
+            QMessageBox.critical(self, "Erreur impression", str(exc))
+
+    def _exporter_csv(self):
+        qdate = self._date_combo.currentData()
+        if qdate is None:
+            return
+        date_str = qdate.toString("yyyy-MM-dd")
+        ventes = self._controller.obtenir_ventes_du_jour(date_str)
+        if not ventes:
+            QMessageBox.information(self, "Export CSV", "Aucune vente à exporter pour cette date.")
+            return
+
+        nom_suggere = f"ventes_{date_str}.csv"
+        chemin, _ = QFileDialog.getSaveFileName(
+            self,
+            "Exporter les ventes en CSV",
+            nom_suggere,
+            "Fichier CSV (*.csv);;Tous les fichiers (*)",
+        )
+        if not chemin:
+            return
+        try:
+            nb = self._controller.exporter_ventes_csv(chemin, date_str, ventes)
+            QMessageBox.information(
+                self, "Export réussi",
+                f"{nb} vente(s) exportée(s) vers :\n{chemin}",
+            )
+        except Exception as exc:
+            QMessageBox.critical(self, "Erreur", f"Impossible d'exporter :\n{exc}")
 
     def _ouvrir_dialog(self):
         profils = self._controller.obtenir_profils()

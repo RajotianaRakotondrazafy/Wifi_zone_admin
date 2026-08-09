@@ -44,7 +44,7 @@ class ToggleSwitch(QAbstractButton):
 class ProfilRow(QWidget):
     """Ligne représentant un profil hotspot dans le tableau."""
 
-    def __init__(self, profil: dict, on_basculer_statut, parent=None):
+    def __init__(self, profil: dict, on_basculer_statut, on_modifier_profil=None, parent=None):
         super().__init__(parent)
         self._profil = profil
         actif = profil["statut"] == "actif"
@@ -101,6 +101,17 @@ class ProfilRow(QWidget):
         badge.setObjectName("badgeProfilActif" if actif else "badgeProfilInactif")
         layout.addWidget(badge)
         layout.addSpacing(8)
+
+        # Bouton modifier
+        if on_modifier_profil is not None:
+            btn_edit = QPushButton("Modifier")
+            btn_edit.setObjectName("boutonActionLimiter")
+            btn_edit.setFixedHeight(28)
+            btn_edit.setFixedWidth(76)
+            btn_edit.setCursor(Qt.CursorShape.PointingHandCursor)
+            btn_edit.clicked.connect(lambda: on_modifier_profil(profil))
+            layout.addWidget(btn_edit)
+            layout.addSpacing(4)
 
         # Bouton bascule
         btn = QPushButton("Désactiver" if actif else "Activer")
@@ -260,7 +271,11 @@ class ZoneCard(QFrame):
                 bloc_lay.setSpacing(0)
                 if i > 0:
                     bloc_lay.addWidget(self._sep())
-                bloc_lay.addWidget(ProfilRow(profil, self._on_basculer_statut))
+                bloc_lay.addWidget(ProfilRow(
+                    profil,
+                    self._on_basculer_statut,
+                    lambda p=profil: self._on_modifier_profil(p, donnees["id"]),
+                ))
                 tableau_lay.addWidget(bloc)
                 self._lignes.append((profil["statut"] == "actif", bloc))
         else:

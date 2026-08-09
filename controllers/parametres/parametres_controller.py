@@ -1,4 +1,9 @@
+import shutil
+import os
+from datetime import datetime
+
 from config.settings import (
+    DATABASE_PATH,
     TARIFICATION_PRIX_PAR_HEURE,
     TARIFICATION_DEBIT_DEFAUT_MBPS,
     TARIFICATION_LIBRE_MIN_AR,
@@ -43,3 +48,16 @@ class ParametresController:
 
     def app_refresh_interval_s(self) -> int:
         return self._repo.get_int("app_refresh_interval_s", 60)
+
+    def sauvegarder_base(self, destination: str) -> str:
+        """Copie app.db vers `destination`. Retourne le chemin final."""
+        os.makedirs(os.path.dirname(destination), exist_ok=True) if os.path.dirname(destination) else None
+        horodatage = datetime.now().strftime("%Y%m%d_%H%M%S")
+        nom = f"ekonnekta_backup_{horodatage}.db"
+        # Si destination est un dossier, on y place le fichier nommé automatiquement
+        if os.path.isdir(destination):
+            chemin_final = os.path.join(destination, nom)
+        else:
+            chemin_final = destination
+        shutil.copy2(DATABASE_PATH, chemin_final)
+        return chemin_final

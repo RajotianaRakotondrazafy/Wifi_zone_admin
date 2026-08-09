@@ -1,4 +1,6 @@
+import csv
 import logging
+import os
 from datetime import datetime, timedelta
 
 from models.ticket import Ticket
@@ -354,6 +356,45 @@ class VentesController:
             return {}
         finally:
             svc.deconnecter()
+
+    def obtenir_details_impression(self, code: str) -> dict | None:
+        """Retourne les données nécessaires à l'impression d'un ticket historique."""
+        row = self._sale_repo.get_vente_par_code(code)
+        if row is None:
+            return None
+        date_vente = row["date_vente"]
+        if isinstance(date_vente, str):
+            from datetime import datetime as _dt
+            date_vente = _dt.fromisoformat(date_vente)
+        return {
+            "code":     code,
+            "password": row["password"],
+            "profil":   row["profil_nom"],
+            "duree_min": row["duree_session_max"],
+            "montant":  row["montant"],
+            "methode":  row["methode_paiement"],
+            "date":     date_vente.strftime("%d/%m/%Y"),
+            "heure":    date_vente.strftime("%H:%M"),
+        }
+
+    def exporter_ventes_csv(self, chemin: str, date: str, ventes: list[dict]) -> int:
+        os.makedirs(os.path.dirname(chemin), exist_ok=True) if os.path.dirname(chemin) else None
+        entetes = ["Date", "Heure", "Code", "Profil", "Méthode", "Montant (Ar)", "Statut"]
+        methodes = {"especes": "Espèces", "mobile_money": "Mobile Money", "carte": "Carte"}
+        with open(chemin, "w", newline="", encoding="utf-8-sig") as f:
+            writer = csv.writer(f, delimiter=";")
+            writer.writerow(entetes)
+            for v in ventes:
+                writer.writerow([
+                    date,
+                    v.get("heure", ""),
+                    v.get("code", ""),
+                    v.get("profil", ""),
+                    methodes.get(v.get("methode", ""), v.get("methode", "")),
+                    int(v.get("montant", 0)),
+                    "Actif" if v.get("actif") else "Expiré",
+                ])
+        return len(ventes)
 
     def total_du_jour(self, date: str | None = None) -> dict:
         date = date or datetime.now().date().isoformat()

@@ -106,6 +106,26 @@ class SaleRepository:
         except sqlite3.Error as e:
             raise RuntimeError(f"Erreur lors de la récupération des ventes actives : {e}")
 
+    def get_vente_par_code(self, code: str) -> dict | None:
+        query = """
+            SELECT s.montant, s.methode_paiement, s.date_vente,
+                   t.password, t.duree_session_max,
+                   COALESCE(t.nom_affichage, hp.nom) AS profil_nom
+            FROM sales s
+            JOIN tickets t          ON t.id = s.ticket_id
+            JOIN hotspot_profiles hp ON hp.id = t.profile_id
+            WHERE t.code = ?
+            ORDER BY s.date_vente DESC
+            LIMIT 1
+        """
+        try:
+            cursor = self._conn.cursor()
+            cursor.execute(query, (code,))
+            row = cursor.fetchone()
+            return dict(row) if row else None
+        except sqlite3.Error as e:
+            raise RuntimeError(f"Erreur récupération vente par code : {e}")
+
     def update_montant(self, ticket_id: int, montant: float):
         """Met à jour le montant de la vente liée à un ticket (session libre)."""
         try:

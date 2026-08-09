@@ -1,8 +1,10 @@
 import time
 import logging
+from datetime import datetime
 from typing import Any
 
 from repositories.router_repository import RouterRepository
+from repositories.sale_repository import SaleRepository
 from services.mikrotik_service import MikroTikService
 
 logger = logging.getLogger(__name__)
@@ -15,6 +17,7 @@ class DashboardController:
     def __init__(self):
         self._mikrotik    = MikroTikService()
         self._router_repo = RouterRepository()
+        self._sale_repo   = SaleRepository()
         self._echec_ts    = 0.0   # timestamp du dernier échec de connexion
 
     def _routeur_actif(self):
@@ -60,12 +63,19 @@ class DashboardController:
     def limiter_session(self, adresse_ip: str, debit_ko: int) -> bool:
         return self._mikrotik.limiter_session(adresse_ip, debit_ko)
 
+    def _totaux_du_jour(self) -> dict:
+        try:
+            return self._sale_repo.agreger_par_date(datetime.now().date().isoformat())
+        except Exception:
+            return {"nb_ventes": 0, "ca_total": 0, "nb_actifs": 0}
+
     def obtenir_donnees_dashboard(self) -> dict[str, Any]:
         """Retourne un snapshot en temps réel depuis le MikroTik actif."""
         if not self._mikrotik.connecte:
             self._tenter_connexion()
 
-        snap = self._mikrotik.obtenir_stats_dashboard()
+        snap    = self._mikrotik.obtenir_stats_dashboard()
+        totaux  = self._totaux_du_jour()
 
         return {
             "connecte": snap["connecte"],
@@ -77,4 +87,8 @@ class DashboardController:
                 "latence":             snap["latence"],
             },
             "sessions_actives": snap["sessions"],
+            "ventes": {
+                "nb_ventes": totaux["nb_ventes"],
+                "ca_total":  int(totaux["ca_total"]),
+            },
         }

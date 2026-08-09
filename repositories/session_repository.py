@@ -111,7 +111,7 @@ class SessionRepository:
                 COALESCE(SUM(octets_recus), 0) AS volume_recu,
                 COALESCE(AVG(duree_reelle), 0) AS duree_moyenne
             FROM sessions
-            WHERE date(date_debut) = ?
+            WHERE date(date_debut) = ? OR date_fin IS NULL
         """
         try:
             cursor = self._conn.cursor()
@@ -144,6 +144,7 @@ class SessionRepository:
             raise RuntimeError(f"Erreur lors de l'agrégation de l'activité : {e}")
 
     def top_consommateurs(self, date: str, limite: int = 5) -> list[dict]:
+        # Include sessions started today OR sessions still open now (uptime spans midnight)
         query = """
             SELECT
                 t.code                       AS code,
@@ -151,7 +152,7 @@ class SessionRepository:
                 SUM(s.octets_recus)          AS octets
             FROM sessions s
             JOIN tickets t ON t.id = s.ticket_id
-            WHERE date(s.date_debut) = ?
+            WHERE date(s.date_debut) = ? OR s.date_fin IS NULL
             GROUP BY s.ticket_id, s.mac_address
             ORDER BY octets DESC
             LIMIT ?
