@@ -123,6 +123,26 @@ class TicketRepository:
             self._conn.rollback()
             raise RuntimeError(f"Erreur clôture ticket : {e}")
 
+    def lister_expirant_bientot(self, minutes: int = 30) -> List[Ticket]:
+        """Tickets actifs dont l'expiration est dans moins de `minutes` minutes."""
+        query = """
+            SELECT * FROM tickets
+            WHERE statut = 'actif'
+              AND date_premiere_connexion IS NOT NULL
+              AND duree_session_max > 0
+              AND datetime(date_premiere_connexion, '+' || duree_session_max || ' minutes')
+                  > datetime('now', 'localtime')
+              AND datetime(date_premiere_connexion, '+' || duree_session_max || ' minutes')
+                  < datetime('now', 'localtime', '+' || ? || ' minutes')
+            ORDER BY datetime(date_premiere_connexion, '+' || duree_session_max || ' minutes') ASC
+        """
+        try:
+            cursor = self._conn.cursor()
+            cursor.execute(query, (minutes,))
+            return [Ticket.from_dict(dict(row)) for row in cursor.fetchall()]
+        except sqlite3.Error as e:
+            raise RuntimeError(f"Erreur lister_expirant_bientot : {e}")
+
     def update_ticket(self, ticket: Ticket) -> bool:
         if ticket.id is None:
             raise ValueError("Impossible de mettre à jour un ticket sans id.")

@@ -9,6 +9,7 @@ ITEMS_MENU = [
     ("fa5s.users",          "Utilisateurs"),
     ("fa5s.wifi",           "Zones WiFi"),
     ("fa5s.chart-bar",      "Statistiques"),
+    ("fa5s.file-alt",       "Rapports"),
     ("fa5s.ban",            "Blocages"),
     ("fa5s.cog",            "Paramètres"),
 ]

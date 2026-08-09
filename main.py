@@ -10,6 +10,7 @@ from views.dashboard.dashboard_view import DashboardView
 from models.user import User
 from services.session import charger_session
 from services.backup_service import BackupService
+from services.notification_service import NotificationService
 
 _APP_DIR = (
     os.path.dirname(sys.executable)
@@ -41,6 +42,9 @@ class ApplicationManager:
         self.auth_controller = AuthController()
         self.dashboard_controller = DashboardController()
         self._backup_service = BackupService(parent=self.app)
+        self._notification_service = NotificationService(
+            icon_path=_logo, parent=self.app
+        )
 
         self.login_view: LoginView | None = None
         self.dashboard_view: DashboardView | None = None
@@ -74,10 +78,12 @@ class ApplicationManager:
         self.dashboard_view.deconnexion_demandee.connect(self.deconnecter)
         self.dashboard_view.show()
         self._backup_service.demarrer()
+        self._notification_service.demarrer()
 
     def deconnecter(self):
         from services.session import effacer_session
         self._backup_service.arreter()
+        self._notification_service.arreter()
         effacer_session()
         if self.dashboard_view is not None:
             self.dashboard_view.close()

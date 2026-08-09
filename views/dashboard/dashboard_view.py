@@ -4,6 +4,7 @@ from PyQt6.QtWidgets import QWidget, QHBoxLayout, QStackedWidget
 from controllers.blocages.blocages_controller import BlocagesController
 from controllers.dashboard.dashboard_controller import DashboardController
 from controllers.parametres.parametres_controller import ParametresController
+from controllers.rapports.rapports_controller import RapportsController
 from controllers.statistiques.statistiques_controller import StatistiquesController
 from controllers.utilisateurs.utilisateurs_controller import UtilisateursController
 from controllers.ventes.ventes_controller import VentesController
@@ -16,6 +17,7 @@ from views.dashboard.pages.ventes_page import VentesPage
 from views.dashboard.pages.utilisateurs_page import UtilisateursPage
 from views.dashboard.pages.zones_wifi_page import ZonesWifiPage
 from views.dashboard.pages.statistiques_page import StatistiquesPage
+from views.dashboard.pages.rapports_page import RapportsPage
 from views.dashboard.pages.blocages_page import BlocagesPage
 from views.dashboard.pages.parametres_page import ParametresPage
 
@@ -31,6 +33,7 @@ class DashboardView(QWidget):
         self._zones_controller   = ZonesController()
         self._utilisateurs_controller = UtilisateursController()
         self._statistiques_controller = StatistiquesController()
+        self._rapports_controller     = RapportsController()
         self._blocages_controller     = BlocagesController()
         self._parametres_controller   = ParametresController()
 
@@ -62,6 +65,7 @@ class DashboardView(QWidget):
             "Utilisateurs":    UtilisateursPage(self._utilisateurs_controller, self._utilisateur),
             "Zones WiFi":      ZonesWifiPage(self._zones_controller),
             "Statistiques":    StatistiquesPage(self._statistiques_controller),
+            "Rapports":        RapportsPage(self._rapports_controller),
             "Blocages":        BlocagesPage(self._blocages_controller),
             "Paramètres":      ParametresPage(self._parametres_controller),
         }

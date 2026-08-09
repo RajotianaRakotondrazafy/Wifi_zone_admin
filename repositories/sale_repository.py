@@ -172,4 +172,64 @@ class SaleRepository:
             }
         except sqlite3.Error as e:
             raise RuntimeError(f"Erreur lors de l'agrégation des ventes : {e}")
-        
+
+    def agreger_par_periode(self, date_debut: str, date_fin: str) -> dict:
+        query = """
+            SELECT
+                COUNT(*)                    AS nb_ventes,
+                COALESCE(SUM(s.montant), 0) AS ca_total
+            FROM sales s
+            WHERE date(s.date_vente) >= ? AND date(s.date_vente) <= ?
+        """
+        try:
+            cursor = self._conn.cursor()
+            cursor.execute(query, (date_debut, date_fin))
+            row = cursor.fetchone()
+            nb   = row["nb_ventes"] or 0
+            ca   = row["ca_total"]  or 0
+            return {
+                "nb_ventes":    nb,
+                "ca_total":     int(ca),
+                "ticket_moyen": round(ca / nb) if nb else 0,
+            }
+        except sqlite3.Error as e:
+            raise RuntimeError(f"Erreur agrégation période : {e}")
+
+    def ventes_par_jour(self, date_debut: str, date_fin: str) -> list[dict]:
+        query = """
+            SELECT
+                date(s.date_vente)          AS jour,
+                COUNT(*)                    AS nb_ventes,
+                COALESCE(SUM(s.montant), 0) AS ca
+            FROM sales s
+            WHERE date(s.date_vente) >= ? AND date(s.date_vente) <= ?
+            GROUP BY jour
+            ORDER BY jour ASC
+        """
+        try:
+            cursor = self._conn.cursor()
+            cursor.execute(query, (date_debut, date_fin))
+            return [dict(row) for row in cursor.fetchall()]
+        except sqlite3.Error as e:
+            raise RuntimeError(f"Erreur ventes par jour : {e}")
+
+    def top_profils_periode(self, date_debut: str, date_fin: str, limite: int = 5) -> list[dict]:
+        query = """
+            SELECT
+                COALESCE(t.nom_affichage, hp.nom) AS profil,
+                COUNT(*)                           AS nb_ventes,
+                COALESCE(SUM(s.montant), 0)        AS ca
+            FROM sales s
+            JOIN tickets t          ON t.id = s.ticket_id
+            JOIN hotspot_profiles hp ON hp.id = t.profile_id
+            WHERE date(s.date_vente) >= ? AND date(s.date_vente) <= ?
+            GROUP BY profil
+            ORDER BY nb_ventes DESC
+            LIMIT ?
+        """
+        try:
+            cursor = self._conn.cursor()
+            cursor.execute(query, (date_debut, date_fin, limite))
+            return [dict(row) for row in cursor.fetchall()]
+        except sqlite3.Error as e:
+            raise RuntimeError(f"Erreur top profils : {e}")

@@ -204,7 +204,8 @@ QLineEdit#barreRecherche:focus { border-color: #5b6ee8; }
 QLineEdit#barreRecherche::placeholder { color: #5c5f6e; }
 
 /* ── QComboBox ───────────────────────────────────────────────────── */
-QComboBox#comboParametres {
+QComboBox#comboParametres,
+QComboBox#comboPeriode {
     background-color: #1c1c1b;
     border: 1px solid #363633;
     border-radius: 8px;
@@ -213,15 +214,17 @@ QComboBox#comboParametres {
     color: #f1f1f1;
     font-size: 13px;
 }
-QComboBox#comboParametres:focus,
-QComboBox#comboParametres:on   { border-color: #5b6ee8; }
-QComboBox#comboParametres:hover { border-color: #4a4a47; }
-QComboBox#comboParametres::drop-down {
+QComboBox#comboParametres:focus, QComboBox#comboPeriode:focus,
+QComboBox#comboParametres:on,    QComboBox#comboPeriode:on    { border-color: #5b6ee8; }
+QComboBox#comboParametres:hover, QComboBox#comboPeriode:hover  { border-color: #4a4a47; }
+QComboBox#comboParametres::drop-down,
+QComboBox#comboPeriode::drop-down {
     border: none;
     width: 28px;
     subcontrol-position: right center;
 }
-QComboBox#comboParametres QAbstractItemView {
+QComboBox#comboParametres QAbstractItemView,
+QComboBox#comboPeriode QAbstractItemView {
     background-color: #282826;
     border: 1px solid #363633;
     border-radius: 6px;
@@ -230,7 +233,8 @@ QComboBox#comboParametres QAbstractItemView {
     selection-background-color: rgba(91, 110, 232, 0.25);
     outline: none;
 }
-QComboBox#comboParametres QAbstractItemView::item {
+QComboBox#comboParametres QAbstractItemView::item,
+QComboBox#comboPeriode QAbstractItemView::item {
     min-height: 32px;
     padding: 0 8px;
     border-radius: 4px;
