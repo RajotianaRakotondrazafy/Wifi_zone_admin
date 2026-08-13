@@ -38,3 +38,8 @@ TARIFICATION_PRIX_PAR_HEURE    = int(os.getenv("TARIFICATION_PRIX_PAR_HEURE",   
 TARIFICATION_DEBIT_DEFAUT_MBPS = int(os.getenv("TARIFICATION_DEBIT_DEFAUT_MBPS", "2"))
 TARIFICATION_LIBRE_MIN_AR      = int(os.getenv("TARIFICATION_LIBRE_MIN_AR",      "500"))
 TARIFICATION_LIBRE_MIN_MIN     = int(os.getenv("TARIFICATION_LIBRE_MIN_MIN",     "30"))
+
+# ── Portail WiFi (hotspot) ────────────────────────────────────────────────────
+# Adresse du portail de connexion affichée sur les tickets et encodée dans
+# les QR codes (ex : "192.168.88.1" ou un nom DNS comme "wifi.example.com").
+HOTSPOT_LOGIN_IP = os.getenv("HOTSPOT_LOGIN_IP", "192.168.88.1")

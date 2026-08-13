@@ -13,6 +13,7 @@ from config.settings import (
     TARIFICATION_LIBRE_MIN_AR,
     TARIFICATION_LIBRE_MIN_MIN,
 )
+from services.qr_service import generer_pixmap, url_connexion_hotspot
 from views.dashboard.components.spin_duree import SpinDuree
 
 
@@ -76,7 +77,7 @@ class DialogVente(QDialog):
 
         self.setWindowTitle("Vendre un ticket")
         self.setModal(True)
-        self.setFixedSize(480, 514)
+        self.setFixedSize(520, 660)
         self.setObjectName("dialogVente")
 
         outer = QVBoxLayout(self)
@@ -393,6 +394,22 @@ class DialogVente(QDialog):
         ct.setContentsMargins(20, 22, 20, 22)
         ct.setSpacing(10)
 
+        # QR code de connexion
+        self._lbl_qr = QLabel()
+        self._lbl_qr.setFixedSize(160, 160)
+        self._lbl_qr.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self._lbl_qr.setStyleSheet(
+            "background-color:#ffffff;border-radius:10px;padding:6px;"
+        )
+        ct.addWidget(self._lbl_qr, alignment=Qt.AlignmentFlag.AlignHCenter)
+
+        lbl_qr_txt = QLabel("Scannez pour vous connecter au WiFi")
+        lbl_qr_txt.setObjectName("detailSessionRow")
+        lbl_qr_txt.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        ct.addWidget(lbl_qr_txt)
+
+        ct.addWidget(self._sep())
+
         lbl_c = QLabel("UTILISATEUR")
         lbl_c.setObjectName("titreSectionSessions")
         lbl_c.setAlignment(Qt.AlignmentFlag.AlignCenter)
@@ -510,6 +527,7 @@ class DialogVente(QDialog):
             )
             self._lbl_code.setText(code)
             self._lbl_mdp.setText(password)
+            self._afficher_qr(code, password)
             self._lbl_recap.setText(recap)
             self._ticket_en_cours = ticket
             self.ticket_vendu.emit(ticket)
@@ -534,6 +552,7 @@ class DialogVente(QDialog):
             recap = f"Session libre · {v['label']} · Paiement à la fin"
             self._lbl_code.setText(code)
             self._lbl_mdp.setText(password)
+            self._afficher_qr(code, password)
             self._lbl_recap.setText(recap)
             self._ticket_en_cours = ticket
             self.ticket_vendu.emit(ticket)
@@ -580,10 +599,24 @@ class DialogVente(QDialog):
 
         self._lbl_code.setText(code)
         self._lbl_mdp.setText(password)
+        self._afficher_qr(code, password)
         self._lbl_recap.setText(recap)
         self._ticket_en_cours = ticket
         self.ticket_vendu.emit(ticket)
         self._stacked.setCurrentIndex(1)
+
+    def _afficher_qr(self, code: str, password: str):
+        """Affiche le QR code de connexion correspondant au ticket."""
+        pix = generer_pixmap(url_connexion_hotspot(code, password))
+        if pix is None:
+            self._lbl_qr.setText("QR indisponible")
+            self._lbl_qr.setStyleSheet("color:#5c5f6e;")
+        else:
+            self._lbl_qr.setText("")
+            self._lbl_qr.setStyleSheet(
+                "background-color:#ffffff;border-radius:10px;padding:6px;"
+            )
+            self._lbl_qr.setPixmap(pix)
 
     def _imprimer(self):
         if not self._ticket_en_cours:
@@ -599,6 +632,10 @@ class DialogVente(QDialog):
             "methode":  self._ticket_en_cours.get("methode", ""),
             "date":     _dt.now().strftime("%d/%m/%Y"),
             "heure":    _dt.now().strftime("%H:%M"),
+            "qr":       url_connexion_hotspot(
+                self._ticket_en_cours.get("code", ""),
+                self._ticket_en_cours.get("password", ""),
+            ),
         }
         imprimer_ticket(data, parent=self)
 
@@ -612,6 +649,7 @@ class DialogVente(QDialog):
         self._vitesse_idx = 0
         self._grp_pay.buttons()[0].setChecked(True)
         self._methode = "especes"
+        self._lbl_qr.clear()
         self._stacked.setCurrentIndex(0)
 
     # ── Helpers UI ────────────────────────────────────────────────────────────

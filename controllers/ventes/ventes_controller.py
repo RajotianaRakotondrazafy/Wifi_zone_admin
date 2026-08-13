@@ -21,6 +21,7 @@ from config.settings import (
     TARIFICATION_LIBRE_MIN_MIN,
     TARIFICATION_PRIX_PAR_HEURE,
 )
+from services.qr_service import url_connexion_hotspot
 
 
 class VentesController:
@@ -375,6 +376,7 @@ class VentesController:
             "methode":  row["methode_paiement"],
             "date":     date_vente.strftime("%d/%m/%Y"),
             "heure":    date_vente.strftime("%H:%M"),
+            "qr":       url_connexion_hotspot(code, row["password"]),
         }
 
     def exporter_ventes_csv(self, chemin: str, date: str, ventes: list[dict]) -> int:

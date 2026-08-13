@@ -1,4 +1,8 @@
+import os
 from datetime import datetime
+from pathlib import Path
+
+from config import settings
 
 
 def generer_html_ticket(data: dict) -> str:
@@ -19,6 +23,17 @@ def generer_html_ticket(data: dict) -> str:
 
     date  = data.get("date",  datetime.now().strftime("%d/%m/%Y"))
     heure = data.get("heure", datetime.now().strftime("%H:%M"))
+
+    qr_html = ""
+    qr_chemin = data.get("qr_chemin")
+    if qr_chemin and os.path.exists(qr_chemin):
+        qr_html = f"""
+        <div style="text-align:center;margin:6px 0 8px;">
+          <img src="{Path(qr_chemin).as_uri()}" width="130" height="130"
+               style="border:1px solid #ddd;border-radius:6px;padding:4px;" />
+          <div style="font-size:8px;color:#999;margin-top:3px;">Scannez pour vous connecter au WiFi</div>
+        </div>
+        """
 
     return f"""
     <html><body style="margin:0;padding:0;font-family:Arial,sans-serif;">
@@ -58,9 +73,11 @@ def generer_html_ticket(data: dict) -> str:
         </tr>
       </table>
 
+      {qr_html}
+
       <!-- Connexion -->
       <div style="border-top:1px dashed #ccc;padding-top:6px;margin-bottom:6px;text-align:center;font-size:9px;color:#555;">
-        <div style="margin-bottom:1px;">Portail : <b>192.168.88.1</b></div>
+        <div style="margin-bottom:1px;">Portail : <b>{settings.HOTSPOT_LOGIN_IP}</b></div>
         <div>Réseau : <b>{data.get('ssid','WiFi Zone')}</b></div>
       </div>
 
@@ -83,6 +100,16 @@ def imprimer_ticket(data: dict, parent=None) -> bool:
     except ImportError:
         return False
 
+    # QR code : fichier temporaire embarqué dans le HTML, supprimé après impression
+    chemin_qr = None
+    if data.get("qr"):
+        try:
+            from services.qr_service import generer_png_fichier
+            chemin_qr = generer_png_fichier(data["qr"])
+            data = {**data, "qr_chemin": chemin_qr}
+        except Exception:
+            chemin_qr = None
+
     printer = QPrinter(QPrinter.PrinterMode.HighResolution)
 
     # Format reçu thermique 80mm × 200mm, marges 3mm
@@ -98,10 +125,23 @@ def imprimer_ticket(data: dict, parent=None) -> bool:
     dialog = QPrintDialog(printer, parent)
     dialog.setWindowTitle("Imprimer le ticket")
     if dialog.exec() != QPrintDialog.DialogCode.Accepted:
+        _supprimer_qr(chemin_qr)
         return False
 
-    doc = QTextDocument()
-    doc.setPageSize(printer.pageRect(QPrinter.Unit.Point).size())
-    doc.setHtml(generer_html_ticket(data))
-    doc.print(printer)
-    return True
+    try:
+        doc = QTextDocument()
+        doc.setPageSize(printer.pageRect(QPrinter.Unit.Point).size())
+        doc.setHtml(generer_html_ticket(data))
+        doc.print(printer)
+        return True
+    finally:
+        _supprimer_qr(chemin_qr)
+
+
+def _supprimer_qr(chemin: str | None):
+    if not chemin:
+        return
+    try:
+        os.remove(chemin)
+    except OSError:
+        pass

@@ -15,5 +15,9 @@ python-dotenv==1.2.2
 bcrypt==5.0.0
 cryptography==50.0.0
 
+# QR code (tickets WiFi)
+qrcode==8.2
+Pillow==11.2.1
+
 # Surveillance fichiers (hot-reload dev)
 watchdog==6.0.0
