@@ -37,6 +37,18 @@ _COULEURS_BARRE = [
 ]
 
 
+def _echelle_secure(max_val, valeurs) -> tuple[int, list[int]]:
+    """Ramène max/valeurs dans la plage int32 exigée par QProgressBar."""
+    max_val = max(0, int(max_val or 0))
+    valeurs = [max(0, int(v or 0)) for v in valeurs]
+    while max_val > 2_000_000_000:
+        max_val //= 1_000
+        valeurs = [v // 1_000 for v in valeurs]
+    if max_val == 0:
+        max_val = 1
+    return max_val, valeurs
+
+
 def _formater_volume(octets) -> str:
     """Formate un volume en octets (ex : '1,2 GB', '840 MB')."""
     try:
@@ -184,7 +196,7 @@ class StatistiquesPage(QWidget):
 
     def _construire_activite(self, activite: list[int]):
         self._vider_layout(self._layout_activite)
-        max_val = max(activite) or 1
+        max_val, activite = _echelle_secure(max(activite) if activite else 0, activite)
 
         for heure, val in enumerate(activite):
             row = QWidget()
@@ -229,7 +241,8 @@ class StatistiquesPage(QWidget):
             self._layout_top.addWidget(lbl)
             return
 
-        max_val = max((c.get("octets") or 0) for c in top) or 1
+        valeurs = [c.get("octets") or 0 for c in top]
+        max_val, valeurs = _echelle_secure(max(valeurs) if valeurs else 0, valeurs)
 
         for i, c in enumerate(top):
             nom = c.get("nom_hote") or c.get("code") or "Inconnu"
@@ -253,7 +266,7 @@ class StatistiquesPage(QWidget):
             barre = QProgressBar()
             barre.setObjectName("barreTop")
             barre.setRange(0, max_val)
-            barre.setValue(c.get("octets") or 0)
+            barre.setValue(valeurs[i])
             barre.setTextVisible(False)
             barre.setFixedHeight(10)
             barre.setStyleSheet(

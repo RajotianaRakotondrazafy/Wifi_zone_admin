@@ -16,7 +16,16 @@ class WorkerDashboard(QThread):
         self._controller = controller
 
     def run(self):
-        donnees = self._controller.obtenir_donnees_dashboard()
+        try:
+            donnees = self._controller.obtenir_donnees_dashboard()
+        except Exception as exc:
+            donnees = {
+                "connecte": False,
+                "statistiques": {},
+                "sessions_actives": [],
+                "ventes": {"nb_ventes": 0, "ca_total": 0},
+                "erreur": str(exc),
+            }
         self.donnees_prete.emit(donnees)
 
 
@@ -35,5 +44,8 @@ class WorkerZones(QThread):
         self._controller = controller
 
     def run(self):
-        etats = self._controller.verifier_connexions()
+        try:
+            etats = self._controller.verifier_connexions()
+        except Exception as exc:
+            etats = {"erreur": str(exc)}
         self.connexions_prete.emit(etats)

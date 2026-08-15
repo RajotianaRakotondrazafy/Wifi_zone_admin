@@ -28,6 +28,25 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
+def _excepthook_global(exc_type, exc_value, exc_tb):
+    """Remplace l'excepthook par défaut pour ne jamais faire planter Qt.
+
+    En exécutable sans console (sys.stderr absent), l'excepthook par défaut
+    échoue à imprimer une exception survenue dans un slot/thread PyQt, ce qui
+    pousse PyQt à appeler qFatal() et à fermer brutalement l'application.
+    On journalise à la place et on laisse l'application continuer.
+    """
+    logger.error(
+        "Exception non gérée (%s) : %s",
+        exc_type.__name__ if exc_type else exc_type,
+        exc_value,
+        exc_info=(exc_type, exc_value, exc_tb),
+    )
+
+
+sys.excepthook = _excepthook_global
+
+
 class ApplicationManager:
     def __init__(self):
         self.app = QApplication(sys.argv)

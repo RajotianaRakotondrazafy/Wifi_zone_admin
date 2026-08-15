@@ -14,6 +14,17 @@ from views.dashboard.components.stat_card import StatCard
 _COULEURS_BARRE = ["#5b6ee8", "#6ee8c0", "#e8c45b", "#e85b6e", "#5b9ee8"]
 
 
+def _echelle_secure(max_val, valeurs) -> tuple[int, list[int]]:
+    max_val = max(0, int(max_val or 0))
+    valeurs = [max(0, int(v or 0)) for v in valeurs]
+    while max_val > 2_000_000_000:
+        max_val //= 1_000
+        valeurs = [v // 1_000 for v in valeurs]
+    if max_val == 0:
+        max_val = 1
+    return max_val, valeurs
+
+
 def _fmt_ar(montant: int) -> str:
     return f"{montant:,}".replace(",", " ")
 
@@ -170,9 +181,10 @@ class RapportsPage(QWidget):
         sep.setObjectName("separateurSession")
         self._carte_evolution._contenu_lay.addWidget(sep)
 
-        max_ca = max((int(r["ca"]) for r in par_jour), default=1) or 1
+        ca_values = [int(r["ca"]) for r in par_jour]
+        max_ca, ca_values = _echelle_secure(max(ca_values) if ca_values else 0, ca_values)
 
-        for r in par_jour:
+        for i, r in enumerate(par_jour):
             row = QWidget()
             row.setStyleSheet("background: transparent;")
             ligne = QHBoxLayout(row)
@@ -197,7 +209,7 @@ class RapportsPage(QWidget):
             barre = QProgressBar()
             barre.setObjectName("barreActivite")
             barre.setRange(0, max_ca)
-            barre.setValue(int(r["ca"]))
+            barre.setValue(ca_values[i])
             barre.setTextVisible(False)
             barre.setFixedHeight(8)
             ligne.addWidget(barre, stretch=1)

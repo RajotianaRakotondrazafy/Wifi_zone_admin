@@ -262,6 +262,18 @@ class DialogZone(QDialog):
         lay.addLayout(h_btn)
         return frame
 
+    def closeEvent(self, event):
+        if self._thread is not None and self._thread.isRunning():
+            thread = self._thread
+            thread.setParent(None)
+            try:
+                thread.terminee.disconnect(self._on_detection_ok)
+                thread.echouee.disconnect(self._on_detection_erreur)
+            except TypeError:
+                pass
+            thread.finished.connect(thread.deleteLater)
+        super().closeEvent(event)
+
     def _detecter_mikrotik(self):
         if self._thread is not None and self._thread.isRunning():
             return
