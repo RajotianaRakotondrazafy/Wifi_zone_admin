@@ -4,6 +4,7 @@ import os
 from datetime import datetime, timedelta
 
 from models.ticket import Ticket
+from repositories.session_repository import SessionRepository
 
 logger = logging.getLogger(__name__)
 from models.sale import Sale
@@ -29,6 +30,7 @@ class VentesController:
         self._profile_repo = HotspotProfileRepository()
         self._ticket_repo = TicketRepository()
         self._sale_repo = SaleRepository()
+        self._session_repo = SessionRepository()
         self._router_repo = RouterRepository()
         self._parametres_repo = ParametresRepository()
 
@@ -70,6 +72,8 @@ class VentesController:
             # Session libre : active jusqu'à clôture (statut 'epuise')
             est_cloturee = v.get("statut") in ("epuise", "expire")
             return {
+                "vente_id":              v.get("vente_id"),
+                "annule":                bool(v.get("annule", 0)),
                 "heure_dt":              heure_dt,
                 "heure":                 heure_dt.strftime("%H:%M"),
                 "profil":                v["profil_nom"],
@@ -86,6 +90,8 @@ class VentesController:
 
         expiration_dt = premiere + timedelta(minutes=duree_min) if demarre else None
         return {
+            "vente_id":              v.get("vente_id"),
+            "annule":                bool(v.get("annule", 0)),
             "heure_dt":              heure_dt,
             "heure":                 heure_dt.strftime("%H:%M"),
             "profil":                v["profil_nom"],
@@ -148,6 +154,53 @@ class VentesController:
                 svc.deconnecter()
 
             return {"ok": True, "message": f"Session {code} clôturée — {montant} Ar."}
+        except Exception as exc:
+            return {"ok": False, "message": str(exc)}
+
+    def annuler_vente(self, vente_id: int) -> dict:
+        """Annule une vente : retrait du hotspot + clôture des sessions + soft delete.
+
+        Le nettoyage routeur est fait au mieux ; s'il échoue, la vente est tout de
+        même annulée en local et le message signale l'action manuelle à faire.
+        """
+        try:
+            info = self._sale_repo.obtenir_vente_par_id(vente_id)
+            if info is None:
+                return {"ok": False, "message": "Vente introuvable."}
+            if info["annule"]:
+                return {"ok": True, "message": "Cette vente est déjà annulée."}
+
+            routeur_ok = True
+            message_routeur = None
+            routeur = self._router_repo.obtenir_par_id(info["router_id"])
+            if routeur and routeur.adresse_ip and routeur.username and routeur.password_chiffre:
+                svc = MikroTikService()
+                try:
+                    if svc.connecter_routeur(
+                        routeur.adresse_ip, routeur.username,
+                        routeur.password_chiffre, routeur.port_api or 8728,
+                    ):
+                        svc.deconnecter_par_username(info["code"])
+                        svc.supprimer_utilisateur_hotspot(info["code"])
+                        logger.info("annuler_vente(%s) : hotspot %s supprimé.", vente_id, info["code"])
+                    else:
+                        routeur_ok = False
+                        message_routeur = (
+                            f"Routeur « {routeur.nom} » injoignable : l'utilisateur "
+                            f"hotspot {info['code']} devra être supprimé manuellement."
+                        )
+                except Exception as exc:
+                    routeur_ok = False
+                    message_routeur = f"Échec de la suppression sur le routeur : {exc}"
+                finally:
+                    svc.deconnecter()
+
+            self._sale_repo.marquer_annulee(vente_id)
+            self._session_repo.fermer_par_ticket(info["ticket_id"])
+
+            if routeur_ok:
+                return {"ok": True, "message": "Ticket annulé (retiré du hotspot)."}
+            return {"ok": True, "message": f"Ticket annulé en local. {message_routeur}"}
         except Exception as exc:
             return {"ok": False, "message": str(exc)}
 

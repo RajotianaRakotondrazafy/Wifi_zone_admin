@@ -24,7 +24,7 @@ class TicketRepository:
                 ticket.duree_session_max,
                 ticket.validite,
                 ticket.statut.value,
-                ticket.date_generation or datetime.now(),
+                ticket.date_generation or datetime.datetime.now(),
                 ticket.date_premiere_connexion,
                 ticket.date_expiration,
                 ticket.nom_affichage,

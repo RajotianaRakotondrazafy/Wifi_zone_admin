@@ -80,6 +80,18 @@ class SessionRepository:
         except sqlite3.Error as e:
             raise RuntimeError(f"Erreur lors de la recherche de la session : {e}")
 
+    def fermer_par_ticket(self, ticket_id: int) -> int:
+        """Clôture toutes les sessions ouvertes liées à un ticket."""
+        query = "UPDATE sessions SET date_fin = ? WHERE ticket_id = ? AND date_fin IS NULL"
+        try:
+            cursor = self._conn.cursor()
+            cursor.execute(query, (datetime.now().isoformat(), ticket_id))
+            self._conn.commit()
+            return cursor.rowcount
+        except sqlite3.Error as e:
+            self._conn.rollback()
+            raise RuntimeError(f"Erreur lors de la clôture des sessions du ticket : {e}")
+
     def fermer_les_autres(self, conserves: list[int], date_fin: datetime) -> int:
         """Clôture toutes les sessions ouvertes hors de la liste donnée."""
         if conserves:

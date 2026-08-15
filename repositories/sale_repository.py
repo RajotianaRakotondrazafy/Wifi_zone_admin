@@ -43,6 +43,8 @@ class SaleRepository:
     def get_ventes_du_jour(self, date: str) -> list[dict]:
         query = """
             SELECT
+                s.id AS vente_id,
+                s.annule,
                 s.date_vente,
                 s.methode_paiement,
                 s.montant,
@@ -74,6 +76,8 @@ class SaleRepository:
         """
         query = """
             SELECT
+                s.id AS vente_id,
+                s.annule,
                 s.date_vente,
                 s.methode_paiement,
                 s.montant,
@@ -86,17 +90,20 @@ class SaleRepository:
             JOIN tickets t          ON t.id = s.ticket_id
             JOIN hotspot_profiles hp ON hp.id = t.profile_id
             WHERE
-                (t.duree_session_max = 0 AND t.statut NOT IN ('epuise', 'expire'))
-                OR (t.duree_session_max != 0
-                    AND t.date_premiere_connexion IS NOT NULL
-                    AND datetime(t.date_premiere_connexion,
-                                 '+' || t.duree_session_max || ' minutes')
-                        > datetime('now', 'localtime'))
-                OR (t.duree_session_max != 0
-                    AND t.date_premiere_connexion IS NULL
-                    AND datetime(s.date_vente,
-                                 '+' || t.validite || ' hours')
-                        > datetime('now', 'localtime'))
+                s.annule = 0
+                AND (
+                    (t.duree_session_max = 0 AND t.statut NOT IN ('epuise', 'expire'))
+                    OR (t.duree_session_max != 0
+                        AND t.date_premiere_connexion IS NOT NULL
+                        AND datetime(t.date_premiere_connexion,
+                                     '+' || t.duree_session_max || ' minutes')
+                            > datetime('now', 'localtime'))
+                    OR (t.duree_session_max != 0
+                        AND t.date_premiere_connexion IS NULL
+                        AND datetime(s.date_vente,
+                                     '+' || t.validite || ' hours')
+                            > datetime('now', 'localtime'))
+                )
             ORDER BY s.date_vente DESC
         """
         try:
@@ -159,7 +166,7 @@ class SaleRepository:
                 )                                           AS nb_actifs
             FROM sales s
             JOIN tickets t ON t.id = s.ticket_id
-            WHERE s.date_vente >= ? AND s.date_vente < date(?, '+1 day')
+            WHERE s.annule = 0 AND s.date_vente >= ? AND s.date_vente < date(?, '+1 day')
         """
         try:
             cursor = self._conn.cursor()
@@ -179,7 +186,7 @@ class SaleRepository:
                 COUNT(*)                    AS nb_ventes,
                 COALESCE(SUM(s.montant), 0) AS ca_total
             FROM sales s
-            WHERE date(s.date_vente) >= ? AND date(s.date_vente) <= ?
+            WHERE s.annule = 0 AND date(s.date_vente) >= ? AND date(s.date_vente) <= ?
         """
         try:
             cursor = self._conn.cursor()
@@ -202,7 +209,7 @@ class SaleRepository:
                 COUNT(*)                    AS nb_ventes,
                 COALESCE(SUM(s.montant), 0) AS ca
             FROM sales s
-            WHERE date(s.date_vente) >= ? AND date(s.date_vente) <= ?
+            WHERE s.annule = 0 AND date(s.date_vente) >= ? AND date(s.date_vente) <= ?
             GROUP BY jour
             ORDER BY jour ASC
         """
@@ -222,7 +229,7 @@ class SaleRepository:
             FROM sales s
             JOIN tickets t          ON t.id = s.ticket_id
             JOIN hotspot_profiles hp ON hp.id = t.profile_id
-            WHERE date(s.date_vente) >= ? AND date(s.date_vente) <= ?
+            WHERE s.annule = 0 AND date(s.date_vente) >= ? AND date(s.date_vente) <= ?
             GROUP BY profil
             ORDER BY nb_ventes DESC
             LIMIT ?
@@ -233,3 +240,38 @@ class SaleRepository:
             return [dict(row) for row in cursor.fetchall()]
         except sqlite3.Error as e:
             raise RuntimeError(f"Erreur top profils : {e}")
+
+    def obtenir_vente_par_id(self, vente_id: int) -> dict | None:
+        """Retourne les infos nécessaires à l'annulation d'une vente."""
+        query = """
+            SELECT
+                s.id AS vente_id,
+                s.annule,
+                t.id AS ticket_id,
+                t.code,
+                hp.router_id
+            FROM sales s
+            JOIN tickets t          ON t.id = s.ticket_id
+            JOIN hotspot_profiles hp ON hp.id = t.profile_id
+            WHERE s.id = ?
+        """
+        try:
+            cursor = self._conn.cursor()
+            cursor.execute(query, (vente_id,))
+            row = cursor.fetchone()
+            return dict(row) if row else None
+        except sqlite3.Error as e:
+            raise RuntimeError(f"Erreur récupération vente {vente_id} : {e}")
+
+    def marquer_annulee(self, vente_id: int) -> None:
+        """Marque la vente comme annulée (soft delete)."""
+        try:
+            cursor = self._conn.cursor()
+            cursor.execute(
+                "UPDATE sales SET annule = 1, date_annulation = CURRENT_TIMESTAMP WHERE id = ?",
+                (vente_id,),
+            )
+            self._conn.commit()
+        except sqlite3.Error as e:
+            self._conn.rollback()
+            raise RuntimeError(f"Erreur lors de l'annulation de la vente : {e}")

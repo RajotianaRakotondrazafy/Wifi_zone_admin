@@ -85,6 +85,10 @@ def _sep() -> QFrame:
 # ── Widget : ticket actif avec countdown ────────────────────────────────────
 
 class LigneTicketActif(QWidget):
+    """Ligne d'un ticket actif avec countdown."""
+
+    annulation_demande = pyqtSignal(dict)   # émet le dict vente complet
+
     def __init__(self, vente: dict, parent=None):
         super().__init__(parent)
         self.setObjectName("ligneTicketActif")
@@ -139,6 +143,14 @@ class LigneTicketActif(QWidget):
         self._lbl_temps.setFixedWidth(170)
         self._lbl_temps.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
         h_top.addWidget(self._lbl_temps)
+
+        # Bouton Annuler
+        btn_annuler = QPushButton("Annuler")
+        btn_annuler.setObjectName("boutonActionBloquer")
+        btn_annuler.setFixedHeight(28)
+        btn_annuler.setCursor(Qt.CursorShape.PointingHandCursor)
+        btn_annuler.clicked.connect(lambda: self.annulation_demande.emit(vente))
+        h_top.addWidget(btn_annuler)
 
         lay.addLayout(h_top)
 
@@ -242,6 +254,7 @@ class LigneTicketLibre(QWidget):
     """Ligne d'une session sans durée fixe — affiche le temps écoulé + bouton Clôturer."""
 
     cloture_demande = pyqtSignal(dict)   # émet le dict vente complet
+    annulation_demande = pyqtSignal(dict)   # émet le dict vente complet
 
     def __init__(self, vente: dict, parent=None):
         super().__init__(parent)
@@ -306,6 +319,14 @@ class LigneTicketLibre(QWidget):
         btn.setCursor(Qt.CursorShape.PointingHandCursor)
         btn.clicked.connect(lambda: self.cloture_demande.emit(self._vente))
         h_bot.addWidget(btn)
+
+        btn_annuler = QPushButton("Annuler")
+        btn_annuler.setObjectName("boutonActionBloquer")
+        btn_annuler.setFixedHeight(30)
+        btn_annuler.setCursor(Qt.CursorShape.PointingHandCursor)
+        btn_annuler.clicked.connect(lambda: self.annulation_demande.emit(self._vente))
+        h_bot.addWidget(btn_annuler)
+
         lay.addLayout(h_bot)
 
         self.actualiser()
@@ -387,10 +408,19 @@ class LigneVente(QWidget):
         lay.addSpacing(16)
 
         # Statut — colonne fixe (Expiré est le plus long)
-        badge_s = QLabel("Actif" if vente.get("actif", False) else "Expiré")
-        badge_s.setObjectName("badgeActif" if vente.get("actif", False) else "badgeExpire")
-        badge_s.setFixedWidth(62)
-        badge_s.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        if vente.get("annule"):
+            badge_s = QLabel("Annulé")
+            badge_s.setObjectName("badgeExpire")
+            badge_s.setFixedWidth(62)
+            badge_s.setAlignment(Qt.AlignmentFlag.AlignCenter)
+            lbl_montant.setStyleSheet(
+                "color:#5c5f6e;font-size:15px;font-weight:bold;text-decoration:line-through;"
+            )
+        else:
+            badge_s = QLabel("Actif" if vente.get("actif", False) else "Expiré")
+            badge_s.setObjectName("badgeActif" if vente.get("actif", False) else "badgeExpire")
+            badge_s.setFixedWidth(62)
+            badge_s.setAlignment(Qt.AlignmentFlag.AlignCenter)
         lay.addWidget(badge_s)
 
         lay.addSpacing(8)
@@ -620,6 +650,7 @@ class VentesPage(QWidget):
                         self._lay_actifs.addWidget(_sep())
                     premiere = False
                     row = LigneTicketActif(v)
+                    row.annulation_demande.connect(self._on_annuler)
                     self._lay_actifs.addWidget(row)
                     self._lignes_actives[v["code"]] = row
                 for v in libres:
@@ -628,6 +659,7 @@ class VentesPage(QWidget):
                     premiere = False
                     row = LigneTicketLibre(v)
                     row.cloture_demande.connect(self._on_cloture)
+                    row.annulation_demande.connect(self._on_annuler)
                     self._lay_actifs.addWidget(row)
                     self._lignes_libres[v["code"]] = row
         else:
@@ -897,6 +929,33 @@ class VentesPage(QWidget):
         else:
             QMessageBox.warning(self, "Erreur clôture", resultat.get("message", "Erreur inconnue."))
 
+        self.rafraichir_donnees()
+
+    def _on_annuler(self, vente: dict):
+        """Annule une vente après confirmation (soft delete + retrait du hotspot)."""
+        rep = QMessageBox.question(
+            self,
+            "Annuler la vente",
+            f"Annuler le ticket <b>{vente.get('code', '?')}</b> "
+            f"({vente.get('profil', '')}) ?<br><br>"
+            "Le client sera déconnecté et ne pourra plus utiliser ce code. "
+            "La vente sera exclue du chiffre d'affaires mais restera visible "
+            "dans l'historique comme « Annulée ».",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+        )
+        if rep != QMessageBox.StandardButton.Yes:
+            return
+
+        vente_id = vente.get("vente_id")
+        if not vente_id:
+            QMessageBox.warning(self, "Erreur", "Identifiant de vente introuvable.")
+            return
+
+        resultat = self._controller.annuler_vente(vente_id)
+        if resultat.get("ok"):
+            QMessageBox.information(self, "Ticket annulé", resultat.get("message", ""))
+        else:
+            QMessageBox.warning(self, "Erreur", resultat.get("message", "Annulation impossible."))
         self.rafraichir_donnees()
 
     def _lancer_detection(self):
