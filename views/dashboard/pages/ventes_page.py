@@ -11,6 +11,7 @@ from PyQt6.QtWidgets import (
 from controllers.ventes.ventes_controller import VentesController
 from views.dashboard.components.stat_card import StatCard
 from views.dashboard.components.dialog_vente import DialogVente
+from views.dashboard.components.elide_label import LabelElide
 from models.user import User
 
 
@@ -382,7 +383,7 @@ class LigneVente(QWidget):
         lay.addSpacing(12)
 
         # Profil — extensible
-        lbl_profil = QLabel(vente["profil"])
+        lbl_profil = LabelElide(vente["profil"], largeur_min=90)
         lbl_profil.setObjectName("nomUtilisateur")
         lay.addWidget(lbl_profil, stretch=1)
 

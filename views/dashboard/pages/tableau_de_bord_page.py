@@ -97,7 +97,9 @@ class TableauDeBordPage(QWidget):
         r.setSpacing(16)
         self._card_nb_ventes = StatCard("fa5s.receipt", "Ventes du jour",  "—", "tickets")
         self._card_ca        = StatCard("fa5s.coins",   "CA du jour",      "—", "Ar")
-        for c in (self._card_nb_ventes, self._card_ca):
+        self._card_ca_produits = StatCard("fa5s.shopping-basket", "CA produits du jour", "—", "Ar")
+        self._card_nb_produits = StatCard("fa5s.box-open",   "Articles produits", "—", "articles")
+        for c in (self._card_nb_ventes, self._card_ca, self._card_ca_produits, self._card_nb_produits):
             r.addWidget(c)
         r.addStretch()
         return r
@@ -186,6 +188,13 @@ class TableauDeBordPage(QWidget):
         ca = ventes.get("ca_total", 0)
         ca_str = f"{ca:,}".replace(",", " ")
         self._card_ca.mettre_a_jour(ca_str, "Ar")
+
+        produits = donnees.get("produits", {})
+        ca_p = produits.get("ca_total", 0)
+        self._card_ca_produits.mettre_a_jour(f"{ca_p:,}".replace(",", " "), "Ar")
+        self._card_nb_produits.mettre_a_jour(
+            str(produits.get("nb_articles", 0)), "articles"
+        )
 
         # ── Titre section sessions ──────────────────────────────────
         self._titre_sessions.setText(

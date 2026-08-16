@@ -45,3 +45,4 @@ QToolTip {
 @import "pages/blocages.qss";
 @import "pages/parametres.qss";
 @import "pages/ventes.qss";
+@import "pages/stock.qss";

@@ -1,0 +1,22 @@
+/* ================================================================
+   PAGE STOCK / BOUTIQUE
+   ================================================================ */
+
+/* Dialogs de la boutique */
+QDialog#dialogStock { background-color: #20201f; }
+
+/* Ligne du récapitulatif par catégorie */
+QWidget#ligneCategorieStock { background-color: transparent; }
+QWidget#ligneCategorieStock:hover { background-color: rgba(255, 255, 255, 0.025); }
+
+QLabel#montantCategorieStock {
+    color: #4ade80;
+    font-size: 14px;
+    font-weight: bold;
+}
+
+QLabel#prixVariableProduit {
+    color: #8b8d98;
+    font-size: 12px;
+    font-style: italic;
+}

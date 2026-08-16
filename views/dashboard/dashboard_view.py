@@ -6,6 +6,7 @@ from controllers.dashboard.dashboard_controller import DashboardController
 from controllers.parametres.parametres_controller import ParametresController
 from controllers.rapports.rapports_controller import RapportsController
 from controllers.statistiques.statistiques_controller import StatistiquesController
+from controllers.stock.stock_controller import StockController
 from controllers.utilisateurs.utilisateurs_controller import UtilisateursController
 from controllers.ventes.ventes_controller import VentesController
 from controllers.zones.zones_controller import ZonesController
@@ -14,6 +15,7 @@ from services.theme import charger_theme
 from views.dashboard.components.sidebar import Sidebar
 from views.dashboard.pages.tableau_de_bord_page import TableauDeBordPage
 from views.dashboard.pages.ventes_page import VentesPage
+from views.dashboard.pages.stock_page import StockPage
 from views.dashboard.pages.utilisateurs_page import UtilisateursPage
 from views.dashboard.pages.zones_wifi_page import ZonesWifiPage
 from views.dashboard.pages.statistiques_page import StatistiquesPage
@@ -30,6 +32,7 @@ class DashboardView(QWidget):
         self._utilisateur        = current_user
         self._controller         = dashboard_controller
         self._ventes_controller  = VentesController()
+        self._stock_controller   = StockController()
         self._zones_controller   = ZonesController()
         self._utilisateurs_controller = UtilisateursController()
         self._statistiques_controller = StatistiquesController()
@@ -62,6 +65,7 @@ class DashboardView(QWidget):
         self._pages: dict[str, QWidget] = {
             "Tableau de bord": TableauDeBordPage(self._controller, self._blocages_controller),
             "Ventes":          VentesPage(self._ventes_controller, self._utilisateur),
+            "Stock":           StockPage(self._stock_controller, self._utilisateur),
             "Utilisateurs":    UtilisateursPage(self._utilisateurs_controller, self._utilisateur),
             "Zones WiFi":      ZonesWifiPage(self._zones_controller),
             "Statistiques":    StatistiquesPage(self._statistiques_controller),

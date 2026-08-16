@@ -6,6 +6,7 @@ from typing import Any
 from repositories.router_repository import RouterRepository
 from repositories.sale_repository import SaleRepository
 from services.mikrotik_service import MikroTikService
+from controllers.stock.stock_controller import StockController
 
 logger = logging.getLogger(__name__)
 
@@ -18,6 +19,7 @@ class DashboardController:
         self._mikrotik    = MikroTikService()
         self._router_repo = RouterRepository()
         self._sale_repo   = SaleRepository()
+        self._stock_ctrl  = StockController()
         self._echec_ts    = 0.0   # timestamp du dernier échec de connexion
 
     def _routeur_actif(self):
@@ -69,6 +71,12 @@ class DashboardController:
         except Exception:
             return {"nb_ventes": 0, "ca_total": 0, "nb_actifs": 0}
 
+    def _produits_du_jour(self) -> dict:
+        try:
+            return self._stock_ctrl.total_du_jour()
+        except Exception:
+            return {"nb_ventes": 0, "nb_articles": 0, "ca_total": 0}
+
     def obtenir_donnees_dashboard(self) -> dict[str, Any]:
         """Retourne un snapshot en temps réel depuis le MikroTik actif."""
         if not self._mikrotik.connecte:
@@ -76,6 +84,7 @@ class DashboardController:
 
         snap    = self._mikrotik.obtenir_stats_dashboard()
         totaux  = self._totaux_du_jour()
+        produits = self._produits_du_jour()
 
         return {
             "connecte": snap["connecte"],
@@ -90,5 +99,10 @@ class DashboardController:
             "ventes": {
                 "nb_ventes": totaux["nb_ventes"],
                 "ca_total":  int(totaux["ca_total"]),
+            },
+            "produits": {
+                "nb_ventes":   produits["nb_ventes"],
+                "nb_articles": produits["nb_articles"],
+                "ca_total":    int(produits["ca_total"]),
             },
         }
