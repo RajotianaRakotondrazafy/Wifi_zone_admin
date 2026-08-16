@@ -8,6 +8,7 @@ from PyQt6.QtWidgets import (
 
 from controllers.zones.zones_controller import ZonesController
 from services.mikrotik_worker import WorkerZones
+from utils.formatage import formater_montant
 from views.dashboard.components.dialog_profil import DialogProfil
 from views.dashboard.components.dialog_zone import DialogZone
 
@@ -89,7 +90,7 @@ class ProfilRow(QWidget):
         layout.addWidget(lbl_validite)
 
         # Prix
-        lbl_prix = QLabel(f"{int(profil['prix'])} Ar")
+        lbl_prix = QLabel(f"{formater_montant(profil['prix'])} Ar")
         lbl_prix.setObjectName("montantVente")
         lbl_prix.setFixedWidth(96)
         layout.addWidget(lbl_prix)
@@ -528,7 +529,9 @@ class ZonesWifiPage(QWidget):
             self._remplir()
 
     def _configurer_zone(self, zone: dict):
-        dialog = DialogZone(zone=zone, parent=self)
+        zone_config = dict(zone)
+        zone_config["password"] = self._controller.obtenir_mot_de_passe(zone["id"])
+        dialog = DialogZone(zone=zone_config, parent=self)
         if dialog.exec():
             try:
                 self._controller.modifier_zone(dialog.donnees)

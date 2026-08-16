@@ -12,6 +12,7 @@ from controllers.ventes.ventes_controller import VentesController
 from views.dashboard.components.stat_card import StatCard
 from views.dashboard.components.dialog_vente import DialogVente
 from views.dashboard.components.elide_label import LabelElide
+from utils.formatage import formater_montant
 from models.user import User
 
 
@@ -308,7 +309,7 @@ class LigneTicketLibre(QWidget):
         h_bot.addSpacing(22)
 
         lbl_tarif = QLabel(
-            f"{TARIFICATION_LIBRE_MIN_AR} Ar min. pour <{TARIFICATION_LIBRE_MIN_MIN} min"
+            f"{formater_montant(TARIFICATION_LIBRE_MIN_AR)} Ar min. pour <{TARIFICATION_LIBRE_MIN_MIN} min"
         )
         lbl_tarif.setObjectName("detailSessionRow")
         h_bot.addWidget(lbl_tarif)
@@ -400,7 +401,7 @@ class LigneVente(QWidget):
         lay.addSpacing(16)
 
         # Montant — colonne fixe, aligné à droite
-        lbl_montant = QLabel(f"{int(vente['montant'])} Ar")
+        lbl_montant = QLabel(f"{formater_montant(vente['montant'])} Ar")
         lbl_montant.setObjectName("montantVente")
         lbl_montant.setFixedWidth(80)
         lbl_montant.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
@@ -621,7 +622,7 @@ class VentesPage(QWidget):
 
         # Stat cards
         self._stat_nb.mettre_a_jour(str(totaux["nb_ventes"]))
-        self._stat_ca.mettre_a_jour(f"{int(totaux['ca_total'])} Ar")
+        self._stat_ca.mettre_a_jour(f"{formater_montant(totaux['ca_total'])} Ar")
 
         # Section "tickets en cours" + bouton vendre : uniquement pour aujourd'hui
         if est_aujourd_hui:
@@ -898,7 +899,7 @@ class VentesPage(QWidget):
 
         lay.addWidget(QLabel(f"<b>Code :</b> {vente['code']}"))
         lay.addWidget(QLabel(f"<b>Durée :</b> {texte_duree if uptime_sec else 'Non démarrée'}"))
-        lay.addWidget(QLabel(f"<b>Montant à facturer :</b> {montant} Ar"))
+        lay.addWidget(QLabel(f"<b>Montant à facturer :</b> {formater_montant(montant)} Ar"))
 
         lbl_m = QLabel("Méthode de paiement :")
         lay.addWidget(lbl_m)

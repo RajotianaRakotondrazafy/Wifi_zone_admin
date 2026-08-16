@@ -7,6 +7,7 @@ from PyQt6.QtWidgets import (
 from controllers.blocages.blocages_controller import BlocagesController
 from controllers.dashboard.dashboard_controller import DashboardController
 from services.mikrotik_worker import WorkerDashboard
+from utils.formatage import formater_montant
 from views.dashboard.components.stat_card import StatCard
 from views.dashboard.components.session_row import SessionRow
 from views.dashboard.components.dialog_limiter import DialogLimiter
@@ -186,12 +187,12 @@ class TableauDeBordPage(QWidget):
         ventes = donnees.get("ventes", {})
         self._card_nb_ventes.mettre_a_jour(str(ventes.get("nb_ventes", 0)), "tickets")
         ca = ventes.get("ca_total", 0)
-        ca_str = f"{ca:,}".replace(",", " ")
+        ca_str = formater_montant(ca)
         self._card_ca.mettre_a_jour(ca_str, "Ar")
 
         produits = donnees.get("produits", {})
         ca_p = produits.get("ca_total", 0)
-        self._card_ca_produits.mettre_a_jour(f"{ca_p:,}".replace(",", " "), "Ar")
+        self._card_ca_produits.mettre_a_jour(formater_montant(ca_p), "Ar")
         self._card_nb_produits.mettre_a_jour(
             str(produits.get("nb_articles", 0)), "articles"
         )

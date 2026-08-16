@@ -3,6 +3,7 @@ from datetime import datetime
 from pathlib import Path
 
 from config import settings
+from utils.formatage import formater_montant
 
 
 def generer_html_ticket(data: dict) -> str:
@@ -65,7 +66,7 @@ def generer_html_ticket(data: dict) -> str:
         </tr>
         <tr>
           <td style="padding:2px 0;color:#666;">Montant</td>
-          <td style="text-align:right;font-weight:bold;">{int(data.get('montant', 0))} Ar</td>
+          <td style="text-align:right;font-weight:bold;">{formater_montant(data.get('montant', 0))} Ar</td>
         </tr>
         <tr>
           <td style="padding:2px 0;color:#666;">Paiement</td>

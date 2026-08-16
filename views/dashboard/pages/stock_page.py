@@ -10,6 +10,7 @@ from PyQt6.QtWidgets import (
 
 from controllers.stock.stock_controller import StockController
 from models.user import User
+from utils.formatage import formater_montant
 from views.dashboard.components.stat_card import StatCard
 from views.dashboard.components.elide_label import LabelElide
 from views.dashboard.components.dialog_vente_produit import DialogVenteProduit
@@ -67,7 +68,7 @@ class LigneVenteProduit(QWidget):
         lay.addSpacing(16)
 
         # Quantité × prix
-        lbl_detail = QLabel(f"{vente['quantite']} × {int(vente['prix_unitaire'])} Ar")
+        lbl_detail = QLabel(f"{vente['quantite']} × {formater_montant(vente['prix_unitaire'])} Ar")
         lbl_detail.setObjectName("labelHeure")
         lbl_detail.setFixedWidth(110)
         lbl_detail.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
@@ -76,7 +77,7 @@ class LigneVenteProduit(QWidget):
         lay.addSpacing(16)
 
         # Montant
-        lbl_montant = QLabel(f"{int(vente['montant'])} Ar")
+        lbl_montant = QLabel(f"{formater_montant(vente['montant'])} Ar")
         lbl_montant.setObjectName("montantVente")
         lbl_montant.setFixedWidth(90)
         lbl_montant.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
@@ -139,7 +140,7 @@ class LigneCategorieStock(QWidget):
 
         lay.addStretch()
 
-        lbl_ca = QLabel(f"{int(ligne['ca'])} Ar")
+        lbl_ca = QLabel(f"{formater_montant(ligne['ca'])} Ar")
         lbl_ca.setObjectName("montantCategorieStock")
         lbl_ca.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
         lay.addWidget(lbl_ca)
@@ -291,7 +292,7 @@ class StockPage(QWidget):
         ventes   = self._controller.obtenir_ventes_du_jour(date_str)
         categories = self._controller.ventes_par_categorie_du_jour(date_str)
 
-        self._stat_ca.mettre_a_jour(f"{int(totaux['ca_total'])} Ar")
+        self._stat_ca.mettre_a_jour(f"{formater_montant(totaux['ca_total'])} Ar")
         self._stat_nb_ventes.mettre_a_jour(str(totaux["nb_ventes"]))
         self._stat_articles.mettre_a_jour(str(totaux["nb_articles"]))
         self._btn_vendre.setVisible(est_aujourd_hui)
@@ -366,7 +367,7 @@ class StockPage(QWidget):
             self,
             "Annuler la vente",
             f"Annuler la vente de <b>{vente['produit']}</b> "
-            f"({vente['quantite']} × {int(vente['prix_unitaire'])} Ar) ?<br><br>"
+            f"({vente['quantite']} × {formater_montant(vente['prix_unitaire'])} Ar) ?<br><br>"
             "La vente sera exclue du chiffre d'affaires mais restera visible "
             "dans l'historique comme « Annulée ».",
             QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,

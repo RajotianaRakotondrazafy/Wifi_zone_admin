@@ -7,7 +7,7 @@ CATEGORIES_PRODUITS: list[tuple[str, str]] = [
     ("serie",    "Série"),
     ("jeux",   "Jeux"),
     ("logiciel", "Logiciel"),
-    ("accessoires_informatiques", "Accessoires informatiques"),
+    ("accessoires", "Accessoires"),
     ("autre", "Autre"),
 ]
 
@@ -21,7 +21,7 @@ def libelle_categorie(code: str) -> str:
 @dataclass
 class Produit:
     nom: str
-    # Valeurs : "film", "serie", "jeux", "logiciel", "accessoires_informatiques", "autre"
+    # Valeurs : "film", "serie", "jeux", "logiciel", "accessoires", "autre"
     categorie: str
     # Prix par défaut ; None ou 0 → prix variable saisi à la vente
     prix_unitaire: Optional[float] = None

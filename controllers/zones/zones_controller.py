@@ -94,6 +94,11 @@ class ZonesController:
         """Liste simple des routeurs (id + nom) pour les combos."""
         return [{"id": r.id, "nom": r.nom} for r in self._router_repo.lister_tous()]
 
+    def obtenir_mot_de_passe(self, router_id: int) -> str:
+        """Retourne le mot de passe déchiffré d'un routeur (pré-remplissage)."""
+        routeur = self._router_repo.obtenir_par_id(router_id)
+        return routeur.password_chiffre if routeur else ""
+
     # ── Profils ──────────────────────────────────────────────────────────
 
     def obtenir_profils(self, router_id: int) -> list[dict]:

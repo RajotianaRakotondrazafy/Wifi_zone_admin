@@ -205,9 +205,14 @@ class DialogZone(QDialog):
 
         # ── Mot de passe ─────────────────────────────────────────────
         self._input_password = QLineEdit()
-        self._input_password.setPlaceholderText(
-            "Nouveau mot de passe…" if self._zone else "Mot de passe API"
-        )
+        if self._zone:
+            self._input_password.setPlaceholderText(
+                "Laisser vide pour conserver l'actuel"
+            )
+            if self._zone.get("password"):
+                self._input_password.setText(self._zone["password"])
+        else:
+            self._input_password.setPlaceholderText("Mot de passe API")
         self._input_password.setEchoMode(QLineEdit.EchoMode.Password)
         lay.addLayout(self._champ("MOT DE PASSE API", self._input_password))
         lay.addSpacing(12)

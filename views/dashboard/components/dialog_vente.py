@@ -14,6 +14,7 @@ from config.settings import (
     TARIFICATION_LIBRE_MIN_MIN,
 )
 from services.qr_service import generer_pixmap, url_connexion_hotspot
+from utils.formatage import formater_montant
 from views.dashboard.components.spin_duree import SpinDuree
 
 
@@ -124,7 +125,7 @@ class DialogVente(QDialog):
 
         for p in self._profils:
             self._combo.addItem(
-                f"{p['nom']}  —  {int(p['prix'])} Ar",
+                f"{p['nom']}  —  {formater_montant(p['prix'])} Ar",
                 userData=p,
             )
         self._combo.addItem("🔗  Forfait mensuel — partage d'appareils", userData=_FORFAIT_TAG)
@@ -297,7 +298,7 @@ class DialogVente(QDialog):
         if not hasattr(self, "_btn_confirmer"):
             return
         prix = self._spin_prix_forfait.value()
-        self._btn_confirmer.setText(f"  Confirmer — {prix:,} Ar".replace(",", " "))
+        self._btn_confirmer.setText(f"  Confirmer — {formater_montant(prix)} Ar")
 
     def _w_custom(self) -> QFrame:
         """Configuration personnalisée : vitesse + durée (2 lignes)."""
@@ -368,7 +369,7 @@ class DialogVente(QDialog):
             self._grp_vitesse.button(1).setChecked(True)
             self._vitesse_idx = 1
             self._lbl_prix_perso.setText(
-                f"{TARIFICATION_LIBRE_MIN_AR} Ar min. (<{TARIFICATION_LIBRE_MIN_MIN} min)"
+                f"{formater_montant(TARIFICATION_LIBRE_MIN_AR)} Ar min. (<{TARIFICATION_LIBRE_MIN_MIN} min)"
             )
             self._btn_confirmer.setText("  Ouvrir la session")
         else:
@@ -484,9 +485,9 @@ class DialogVente(QDialog):
             self._d_duree.setText(_fmt_duree(profil["duree_session_max"]))
             self._d_debit.setText(f"{profil['debit_max'] // 1024} Mbps")
             self._d_validite.setText(_fmt_validite(profil["validite"]))
-            self._d_prix.setText(f"{int(profil['prix'])} Ar")
+            self._d_prix.setText(f"{formater_montant(profil['prix'])} Ar")
             self._zone_detail.setCurrentIndex(0)
-            self._btn_confirmer.setText(f"  Confirmer — {int(profil['prix'])} Ar")
+            self._btn_confirmer.setText(f"  Confirmer — {formater_montant(profil['prix'])} Ar")
         else:
             self._zone_detail.setCurrentIndex(2)
             self._maj_prix_perso()
@@ -494,10 +495,10 @@ class DialogVente(QDialog):
     def _maj_prix_perso(self):
         duree_min = self._spin_duree.valeur_minutes
         prix = round((duree_min / 60) * TARIFICATION_PRIX_PAR_HEURE)
-        self._lbl_prix_perso.setText(f"{int(prix)} Ar")
+        self._lbl_prix_perso.setText(f"{formater_montant(prix)} Ar")
         profil = self._combo.currentData()
         if profil is None:
-            self._btn_confirmer.setText(f"  Confirmer — {int(prix)} Ar")
+            self._btn_confirmer.setText(f"  Confirmer — {formater_montant(prix)} Ar")
 
     def _effectuer_vente(self):
         code     = _generer_username()
@@ -523,7 +524,7 @@ class DialogVente(QDialog):
             }
             recap = (
                 f"Forfait 1 mois · 5 Mbps · {n_app} appareils max  ·  "
-                f"{prix} Ar  ·  {_METHODES.get(self._methode, '')}"
+                f"{formater_montant(prix)} Ar  ·  {_METHODES.get(self._methode, '')}"
             )
             self._lbl_code.setText(code)
             self._lbl_mdp.setText(password)
@@ -574,7 +575,7 @@ class DialogVente(QDialog):
             recap = (
                 f"{profil['nom']}  ·  {_fmt_duree(profil['duree_session_max'])}  ·  "
                 f"Validité {_fmt_validite(profil['validite'])}  ·  "
-                f"{int(profil['prix'])} Ar  ·  {_METHODES.get(self._methode, '')}"
+                f"{formater_montant(profil['prix'])} Ar  ·  {_METHODES.get(self._methode, '')}"
             )
         else:
             duree_min = self._spin_duree.valeur_minutes
@@ -594,7 +595,7 @@ class DialogVente(QDialog):
             }
             recap = (
                 f"Personnalisé {v['label']}  ·  {_fmt_duree(duree_min)}  ·  "
-                f"{int(prix)} Ar  ·  {_METHODES.get(self._methode, '')}"
+                f"{formater_montant(prix)} Ar  ·  {_METHODES.get(self._methode, '')}"
             )
 
         self._lbl_code.setText(code)

@@ -7,6 +7,7 @@ from PyQt6.QtWidgets import (
 
 from controllers.stock.stock_controller import StockController
 from models.produit import CATEGORIES_PRODUITS, libelle_categorie
+from utils.formatage import formater_montant
 from views.dashboard.components.elide_label import LabelElide
 
 
@@ -166,7 +167,7 @@ class DialogGestionProduits(QDialog):
 
         self.setWindowTitle("Gérer les produits")
         self.setModal(True)
-        self.setFixedSize(660, 540)
+        self.setFixedSize(700, 500)
         self.setObjectName("dialogStock")
 
         lay = QVBoxLayout(self)
@@ -211,13 +212,18 @@ class DialogGestionProduits(QDialog):
         lay.addWidget(_sep())
         lay.addSpacing(4)
 
+        h_fermer = QHBoxLayout()
+        h_fermer.addStretch()
         btn_fermer = QPushButton("  Fermer")
         btn_fermer.setObjectName("boutonVendre")
         btn_fermer.setIcon(qta.icon("fa5s.times", color="#ffffff"))
-        btn_fermer.setFixedHeight(42)
+        btn_fermer.setFixedWidth(140)
+        btn_fermer.setFixedHeight(40)
         btn_fermer.setCursor(Qt.CursorShape.PointingHandCursor)
         btn_fermer.clicked.connect(self.accept)
-        lay.addWidget(btn_fermer)
+        h_fermer.addWidget(btn_fermer)
+        h_fermer.addStretch()
+        lay.addLayout(h_fermer)
 
         self._charger()
 
@@ -231,8 +237,9 @@ class DialogGestionProduits(QDialog):
         if not produits:
             lbl = QLabel("Aucun produit. Cliquez sur « Ajouter un produit ».")
             lbl.setObjectName("loginUtilisateur")
+            lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
             lbl.setContentsMargins(20, 18, 20, 18)
-            self._layout_liste.addWidget(lbl)
+            self._layout_liste.addWidget(lbl, stretch=1)
             return
 
         for i, p in enumerate(produits):
@@ -242,6 +249,8 @@ class DialogGestionProduits(QDialog):
                 sep.setObjectName("separateurSession")
                 self._layout_liste.addWidget(sep)
             self._layout_liste.addWidget(self._ligne_produit(p))
+
+        self._layout_liste.addStretch()
 
     def _ligne_produit(self, produit: dict) -> QWidget:
         ligne = QWidget()
@@ -268,7 +277,7 @@ class DialogGestionProduits(QDialog):
 
         # Prix
         if produit.get("prix_fixe"):
-            lbl_prix = QLabel(f"{int(produit['prix_unitaire'])} Ar")
+            lbl_prix = QLabel(f"{formater_montant(produit['prix_unitaire'])} Ar")
             lbl_prix.setObjectName("montantVente")
         else:
             lbl_prix = QLabel("Prix variable")

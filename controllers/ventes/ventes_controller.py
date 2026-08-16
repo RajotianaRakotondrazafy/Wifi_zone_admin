@@ -15,6 +15,7 @@ from repositories.sale_repository import SaleRepository
 from repositories.router_repository import RouterRepository
 from repositories.parametres_repository import ParametresRepository
 from services.mikrotik_service import MikroTikErreur, MikroTikService
+from utils.formatage import formater_montant
 
 from config.settings import (
     TARIFICATION_DEBIT_DEFAUT_MBPS,
@@ -153,7 +154,7 @@ class VentesController:
             finally:
                 svc.deconnecter()
 
-            return {"ok": True, "message": f"Session {code} clôturée — {montant} Ar."}
+            return {"ok": True, "message": f"Session {code} clôturée — {formater_montant(montant)} Ar."}
         except Exception as exc:
             return {"ok": False, "message": str(exc)}
 

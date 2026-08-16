@@ -5,6 +5,8 @@ from PyQt6.QtWidgets import (
     QFrame, QComboBox, QSpinBox, QButtonGroup,
 )
 
+from utils.formatage import formater_montant
+
 _METHODES = {
     "especes":      "Espèces",
     "mobile_money": "Mobile Money",
@@ -166,7 +168,7 @@ class DialogVenteProduit(QDialog):
 
     def _maj_total(self):
         total = self._spin_quantite.value() * self._spin_prix.value()
-        self._btn_confirmer.setText(f"  Confirmer — {total:,} Ar".replace(",", " "))
+        self._btn_confirmer.setText(f"  Confirmer — {formater_montant(total)} Ar")
 
     def _confirmer(self):
         produit = self._combo_produit.currentData()

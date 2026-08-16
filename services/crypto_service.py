@@ -1,19 +1,63 @@
 """Chiffrement symétrique Fernet pour les secrets stockés en base de données.
 
-La clé est lue depuis la variable d'environnement FERNET_KEY.
-Si elle est absente (première exécution), une clé est générée automatiquement
-et ajoutée au fichier .env situé à la racine du projet.
+La clé est lue depuis la variable d'environnement FERNET_KEY ou le fichier
+.env. Si elle est absente (première exécution), une clé est générée
+automatiquement et ajoutée au fichier .env.
+
+Important : le chemin du .env doit rester identique à celui de
+config/settings.py (à côté de l'exe en version compilée, à la racine en dev).
+Sinon, en exécutable, une nouvelle clé serait générée à chaque démarrage et
+les mots de passe déjà stockés deviendraient indéchiffrables.
 """
 
 import logging
 import os
+import sys
 
 from cryptography.fernet import Fernet, InvalidToken
 
 logger = logging.getLogger(__name__)
 
-_BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-_ENV_PATH = os.path.join(_BASE_DIR, ".env")
+
+def _chemin_env() -> str:
+    """Chemin du fichier .env — cohérent avec config/settings.py."""
+    if getattr(sys, "frozen", False):
+        base = os.path.dirname(sys.executable)
+    else:
+        base = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    return os.path.join(base, ".env")
+
+
+_ENV_PATH = _chemin_env()
+
+
+def _lire_cle(chemin: str) -> str:
+    """Lit la dernière valeur FERNET_KEY d'un fichier .env."""
+    try:
+        with open(chemin, encoding="utf-8") as f:
+            cle = ""
+            for ligne in f:
+                ligne = ligne.strip()
+                if not ligne or ligne.startswith("#") or "=" not in ligne:
+                    continue
+                nom, _, valeur = ligne.partition("=")
+                if nom.strip() == "FERNET_KEY":
+                    cle = valeur.strip()
+            return cle
+    except OSError:
+        return ""
+
+
+def _sauvegarder_cle(cle: str) -> None:
+    """Écrit la clé dans le .env s'il n'y en a pas déjà une."""
+    if _lire_cle(_ENV_PATH):
+        return
+    try:
+        with open(_ENV_PATH, "a", encoding="utf-8") as f:
+            f.write(f"\nFERNET_KEY={cle}\n")
+        logger.info("CryptoService : clé Fernet ajoutée à %s", _ENV_PATH)
+    except OSError as exc:
+        logger.warning("CryptoService : impossible d'écrire dans .env (%s)", exc)
 
 
 class CryptoService:
@@ -27,9 +71,20 @@ class CryptoService:
         return cls._instance
 
     def _initialiser(self) -> None:
-        cle = os.getenv("FERNET_KEY", "").strip()
+        cle = os.getenv("FERNET_KEY", "").strip() or _lire_cle(_ENV_PATH)
+        if not cle and getattr(sys, "frozen", False):
+            # Migration : anciennes versions généraient la clé dans
+            # sys._MEIPASS/.env (répertoire temporaire jamais relu). On la
+            # réutilise pour ne pas perdre les mots de passe déjà chiffrés,
+            # puis on la copie dans le .env à côté de l'exe.
+            legacy = os.path.join(getattr(sys, "_MEIPASS", ""), ".env")
+            cle = _lire_cle(legacy)
+            if cle:
+                _sauvegarder_cle(cle)
         if not cle:
             cle = self._generer_et_sauvegarder()
+        else:
+            os.environ["FERNET_KEY"] = cle
         try:
             self._fernet = Fernet(cle.encode())
         except Exception as exc:
@@ -39,13 +94,8 @@ class CryptoService:
 
     def _generer_et_sauvegarder(self) -> str:
         cle = Fernet.generate_key().decode()
-        try:
-            with open(_ENV_PATH, "a", encoding="utf-8") as f:
-                f.write(f"\nFERNET_KEY={cle}\n")
-            os.environ["FERNET_KEY"] = cle
-            logger.info("CryptoService : clé Fernet générée et ajoutée à .env")
-        except OSError as exc:
-            logger.warning("CryptoService : impossible d'écrire dans .env (%s)", exc)
+        _sauvegarder_cle(cle)
+        os.environ["FERNET_KEY"] = cle
         return cle
 
     # ── API publique ──────────────────────────────────────────────────────
