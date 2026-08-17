@@ -311,7 +311,7 @@ class RapportsPage(QWidget):
         sep.setObjectName("separateurSession")
         self._carte_produits_cat._contenu_lay.addWidget(sep)
 
-        max_val = max((r["ca"] for r in categories), default=1) or 1
+        max_val = int(max((r["ca"] for r in categories), default=1) or 1)
 
         for i, r in enumerate(categories):
             row = QWidget()
