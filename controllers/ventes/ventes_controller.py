@@ -448,7 +448,7 @@ class VentesController:
                     v.get("profil", ""),
                     methodes.get(v.get("methode", ""), v.get("methode", "")),
                     int(v.get("montant", 0)),
-                    "Actif" if v.get("actif") else "Expiré",
+                    "Annulé" if v.get("annule") else ("Actif" if v.get("actif") else "Expiré"),
                 ])
         return len(ventes)
 

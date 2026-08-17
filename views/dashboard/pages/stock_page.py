@@ -35,7 +35,7 @@ class LigneVenteProduit(QWidget):
 
     annulation_demande = pyqtSignal(dict)
 
-    def __init__(self, vente: dict, parent=None):
+    def __init__(self, vente: dict, annulable: bool = True, parent=None):
         super().__init__(parent)
         self.setObjectName("ligneVente")
 
@@ -104,7 +104,7 @@ class LigneVenteProduit(QWidget):
             badge_a.setFixedWidth(84)
             badge_a.setAlignment(Qt.AlignmentFlag.AlignCenter)
             lay.addWidget(badge_a)
-        else:
+        elif annulable:
             self.btn_annuler = QPushButton("Annuler")
             self.btn_annuler.setObjectName("boutonActionBloquer")
             self.btn_annuler.setFixedHeight(28)
@@ -112,6 +112,8 @@ class LigneVenteProduit(QWidget):
             self.btn_annuler.setCursor(Qt.CursorShape.PointingHandCursor)
             self.btn_annuler.clicked.connect(lambda: self.annulation_demande.emit(vente))
             lay.addWidget(self.btn_annuler)
+        else:
+            lay.addSpacing(84)
 
 
 class LigneCategorieStock(QWidget):
@@ -309,7 +311,7 @@ class StockPage(QWidget):
             for i, v in enumerate(ventes):
                 if i > 0:
                     self._lay_ventes.addWidget(_sep())
-                ligne = LigneVenteProduit(v)
+                ligne = LigneVenteProduit(v, annulable=est_aujourd_hui)
                 ligne.annulation_demande.connect(self._on_annuler)
                 self._lay_ventes.addWidget(ligne)
 

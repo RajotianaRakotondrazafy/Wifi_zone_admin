@@ -123,11 +123,12 @@ class SessionRepository:
                 COALESCE(SUM(octets_recus), 0) AS volume_recu,
                 COALESCE(AVG(duree_reelle), 0) AS duree_moyenne
             FROM sessions
-            WHERE date(date_debut) = ? OR date_fin IS NULL
+            WHERE date(date_debut) = ?
+               OR (date_fin IS NULL AND date(date_debut) >= date(?, '-1 day'))
         """
         try:
             cursor = self._conn.cursor()
-            cursor.execute(query, (date,))
+            cursor.execute(query, (date, date))
             row = cursor.fetchone()
             return {
                 "nb_sessions":   row["nb_sessions"],
@@ -156,7 +157,9 @@ class SessionRepository:
             raise RuntimeError(f"Erreur lors de l'agrégation de l'activité : {e}")
 
     def top_consommateurs(self, date: str, limite: int = 5) -> list[dict]:
-        # Include sessions started today OR sessions still open now (uptime spans midnight)
+        # Sessions démarrées aujourd'hui, ou encore ouvertes depuis hier au plus
+        # tôt (uptime à cheval sur minuit) — pas les sessions ouvertes depuis
+        # des jours (forfaits longue durée), sous peine de fausser le classement.
         query = """
             SELECT
                 t.code                       AS code,
@@ -164,14 +167,15 @@ class SessionRepository:
                 SUM(s.octets_recus)          AS octets
             FROM sessions s
             JOIN tickets t ON t.id = s.ticket_id
-            WHERE date(s.date_debut) = ? OR s.date_fin IS NULL
+            WHERE date(s.date_debut) = ?
+               OR (s.date_fin IS NULL AND date(s.date_debut) >= date(?, '-1 day'))
             GROUP BY s.ticket_id, s.mac_address
             ORDER BY octets DESC
             LIMIT ?
         """
         try:
             cursor = self._conn.cursor()
-            cursor.execute(query, (date, limite))
+            cursor.execute(query, (date, date, limite))
             return [dict(row) for row in cursor.fetchall()]
         except sqlite3.Error as e:
             raise RuntimeError(f"Erreur lors du classement des consommateurs : {e}")

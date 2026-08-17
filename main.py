@@ -93,8 +93,6 @@ class ApplicationManager:
         self.afficher_dashboard(user)
 
     def afficher_dashboard(self, user: User):
-        from services.session import sauvegarder_session
-        sauvegarder_session(user)
         if self.login_view is not None:
             self.login_view.close()
         self.dashboard_view = DashboardView(
