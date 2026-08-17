@@ -3,7 +3,7 @@ import qtawesome as qta
 from PyQt6.QtCore import Qt, QEvent, QTimer, pyqtSignal, QSize
 from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout,
-    QLabel, QLineEdit, QPushButton, QFrame,
+    QLabel, QLineEdit, QPushButton, QFrame, QCheckBox,
 )
 
 from controllers.auth.auth_controller import AuthController
@@ -56,7 +56,7 @@ class _ChampIcone(QFrame):
 
 
 class LoginView(QWidget):
-    connexion_reussie = pyqtSignal(object)  # object = User
+    connexion_reussie = pyqtSignal(object, bool)  # (User, souvenir)
 
     def __init__(self, auth_controller: AuthController):
         super().__init__()
@@ -152,6 +152,13 @@ class LoginView(QWidget):
 
         layout_carte.addWidget(self._champ_mdp_frame)
 
+        # ── Se souvenir de moi ──────────────────────────────────────────
+        layout_carte.addSpacing(6)
+        self._checkbox_souvenir = QCheckBox("Se souvenir de moi")
+        self._checkbox_souvenir.setObjectName("checkboxSouvenir")
+        self._checkbox_souvenir.setChecked(True)
+        layout_carte.addWidget(self._checkbox_souvenir)
+
         # ── Message d'erreur ────────────────────────────────────────────
         self.label_erreur = QLabel("Identifiant ou mot de passe incorrect.")
         self.label_erreur.setObjectName("labelErreur")
@@ -245,7 +252,8 @@ class LoginView(QWidget):
 
         if user is not None:
             self.bouton_connexion.setEnabled(True)
-            self.connexion_reussie.emit(user)
+            souvenir = self._checkbox_souvenir.isChecked()
+            self.connexion_reussie.emit(user, souvenir)
         else:
             self.bouton_connexion.setEnabled(True)
             self._afficher_erreur("Identifiant ou mot de passe incorrect.")

@@ -69,21 +69,28 @@ class ApplicationManager:
         self.dashboard_view: DashboardView | None = None
 
     def demarrer(self):
-        # Mode dev : si une session existe, on repart directement sur le
-        # tableau de bord sans repasser par le login (hot-reload).
-        if "--dev" in sys.argv:
-            user = charger_session()
-            if user is not None:
-                self.afficher_dashboard(user)
-                sys.exit(self.app.exec())
-                return
+        # Si une session valide existe (souvenir de moi), on repart
+        # directement sur le tableau de bord sans repasser par le login.
+        user = charger_session()
+        if user is not None:
+            self.afficher_dashboard(user)
+            sys.exit(self.app.exec())
+            return
         self.afficher_login()
         sys.exit(self.app.exec())
 
     def afficher_login(self):
         self.login_view = LoginView(auth_controller=self.auth_controller)
-        self.login_view.connexion_reussie.connect(self.afficher_dashboard)
+        self.login_view.connexion_reussie.connect(self._on_connexion)
         self.login_view.show()
+
+    def _on_connexion(self, user: User, souvenir: bool = False):
+        from services.session import sauvegarder_session, effacer_session
+        if souvenir:
+            sauvegarder_session(user)
+        else:
+            effacer_session()
+        self.afficher_dashboard(user)
 
     def afficher_dashboard(self, user: User):
         from services.session import sauvegarder_session
