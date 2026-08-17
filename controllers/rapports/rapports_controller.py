@@ -3,6 +3,7 @@ import os
 from datetime import date, timedelta
 
 from repositories.sale_repository import SaleRepository
+from repositories.produit_repository import ProduitRepository
 
 
 def _lundi_semaine(d: date) -> date:
@@ -32,6 +33,7 @@ class RapportsController:
 
     def __init__(self):
         self._sale_repo = SaleRepository()
+        self._produit_repo = ProduitRepository()
 
     def plage_pour_periode(self, periode: str) -> tuple[str, str]:
         """Retourne (date_debut, date_fin) en ISO pour la période choisie."""
@@ -55,13 +57,18 @@ class RapportsController:
         return debut.isoformat(), fin.isoformat()
 
     def rapport_complet(self, date_debut: str, date_fin: str) -> dict:
-        synthese    = self._sale_repo.agreger_par_periode(date_debut, date_fin)
-        par_jour    = self._sale_repo.ventes_par_jour(date_debut, date_fin)
-        top_profils = self._sale_repo.top_profils_periode(date_debut, date_fin)
+        synthese      = self._sale_repo.agreger_par_periode(date_debut, date_fin)
+        par_jour      = self._sale_repo.ventes_par_jour(date_debut, date_fin)
+        top_profils   = self._sale_repo.top_profils_periode(date_debut, date_fin)
+        produits      = self._produit_repo.agreger_par_periode(date_debut, date_fin)
+        par_categorie = self._produit_repo.ventes_par_categorie_periode(date_debut, date_fin)
         return {
-            "synthese":    synthese,
-            "par_jour":    par_jour,
-            "top_profils": top_profils,
+            "synthese":      synthese,
+            "par_jour":      par_jour,
+            "top_profils":   top_profils,
+            "produits":      produits,
+            "par_categorie": par_categorie,
+            "ca_total":      synthese["ca_total"] + produits["ca_total"],
         }
 
     def exporter_csv(self, chemin: str, date_debut: str, date_fin: str,

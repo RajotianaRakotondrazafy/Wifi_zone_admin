@@ -189,6 +189,49 @@ class ProduitRepository:
             self._conn.rollback()
             raise RuntimeError(f"Erreur lors de l'annulation de la vente produit : {e}")
 
+    def agreger_par_periode(self, date_debut: str, date_fin: str) -> dict:
+        query = """
+            SELECT
+                COUNT(*)                      AS nb_ventes,
+                COALESCE(SUM(vp.quantite), 0) AS nb_articles,
+                COALESCE(SUM(vp.montant), 0)  AS ca_total
+            FROM ventes_produits vp
+            WHERE vp.annule = 0
+              AND date(vp.date_vente) >= ? AND date(vp.date_vente) <= ?
+        """
+        try:
+            cursor = self._conn.cursor()
+            cursor.execute(query, (date_debut, date_fin))
+            row = cursor.fetchone()
+            return {
+                "nb_ventes":   row["nb_ventes"] or 0,
+                "nb_articles": row["nb_articles"] or 0,
+                "ca_total":    int(row["ca_total"] or 0),
+            }
+        except sqlite3.Error as e:
+            raise RuntimeError(f"Erreur agrégation produits par période : {e}")
+
+    def ventes_par_categorie_periode(self, date_debut: str, date_fin: str) -> list[dict]:
+        query = """
+            SELECT
+                p.categorie                       AS categorie,
+                COUNT(*)                          AS nb_ventes,
+                COALESCE(SUM(vp.quantite), 0)     AS quantite,
+                COALESCE(SUM(vp.montant), 0)      AS ca
+            FROM ventes_produits vp
+            JOIN produits p ON p.id = vp.produit_id
+            WHERE vp.annule = 0
+              AND date(vp.date_vente) >= ? AND date(vp.date_vente) <= ?
+            GROUP BY p.categorie
+            ORDER BY ca DESC
+        """
+        try:
+            cursor = self._conn.cursor()
+            cursor.execute(query, (date_debut, date_fin))
+            return [dict(row) for row in cursor.fetchall()]
+        except sqlite3.Error as e:
+            raise RuntimeError(f"Erreur ventes produits par catégorie période : {e}")
+
     def ventes_par_periode(self, date_debut: str, date_fin: str) -> list[dict]:
         query = """
             SELECT

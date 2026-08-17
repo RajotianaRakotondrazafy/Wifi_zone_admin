@@ -81,10 +81,11 @@ class RapportsPage(QWidget):
         # ── Cards synthèse ───────────────────────────────────────────
         rangee = QHBoxLayout()
         rangee.setSpacing(16)
-        self._card_ca      = StatCard("fa5s.coins",       "CA de la période",  "—", "Ar")
-        self._card_ventes  = StatCard("fa5s.receipt",     "Ventes",            "—", "tickets")
-        self._card_moyenne = StatCard("fa5s.chart-line",  "Ticket moyen",      "—", "Ar")
-        for c in (self._card_ca, self._card_ventes, self._card_moyenne):
+        self._card_ca          = StatCard("fa5s.coins",       "CA de la période",  "—", "Ar")
+        self._card_ca_produits = StatCard("fa5s.box",         "CA Produits",       "—", "Ar")
+        self._card_ventes      = StatCard("fa5s.receipt",     "Ventes",            "—", "tickets")
+        self._card_moyenne     = StatCard("fa5s.chart-line",  "Ticket moyen",      "—", "Ar")
+        for c in (self._card_ca, self._card_ca_produits, self._card_ventes, self._card_moyenne):
             rangee.addWidget(c)
         layout.addLayout(rangee)
 
@@ -99,11 +100,13 @@ class RapportsPage(QWidget):
         self._contenu_layout.setSpacing(20)
         self._contenu_layout.setContentsMargins(0, 0, 0, 0)
 
-        self._carte_evolution   = self._creer_carte("ÉVOLUTION JOURNALIÈRE")
-        self._carte_top_profils = self._creer_carte("TOP FORFAITS VENDUS")
+        self._carte_evolution        = self._creer_carte("ÉVOLUTION JOURNALIÈRE")
+        self._carte_top_profils      = self._creer_carte("TOP FORFAITS VENDUS")
+        self._carte_produits_cat     = self._creer_carte("VENTES PRODUITS PAR CATÉGORIE")
 
         self._contenu_layout.addWidget(self._carte_evolution)
         self._contenu_layout.addWidget(self._carte_top_profils)
+        self._contenu_layout.addWidget(self._carte_produits_cat)
         self._contenu_layout.addStretch()
 
         scroll.setWidget(contenu)
@@ -140,15 +143,18 @@ class RapportsPage(QWidget):
         donnees = self._controller.rapport_complet(self._date_debut, self._date_fin)
 
         synthese    = donnees["synthese"]
+        produits    = donnees["produits"]
         self._par_jour = donnees["par_jour"]
 
         # Cards
-        self._card_ca.mettre_a_jour(_fmt_ar(synthese["ca_total"]), "Ar")
+        self._card_ca.mettre_a_jour(_fmt_ar(donnees["ca_total"]), "Ar")
+        self._card_ca_produits.mettre_a_jour(_fmt_ar(produits["ca_total"]), "Ar")
         self._card_ventes.mettre_a_jour(str(synthese["nb_ventes"]), "tickets")
         self._card_moyenne.mettre_a_jour(_fmt_ar(synthese["ticket_moyen"]), "Ar")
 
         self._construire_evolution(self._par_jour)
         self._construire_top_profils(donnees["top_profils"])
+        self._construire_produits_categorie(donnees["par_categorie"])
 
     # ── Sections ──────────────────────────────────────────────────────
 
@@ -276,6 +282,77 @@ class RapportsPage(QWidget):
             ligne.addWidget(lbl_ca)
 
             self._carte_top_profils._contenu_lay.addWidget(row)
+
+    def _construire_produits_categorie(self, categories: list[dict]):
+        self._vider(self._carte_produits_cat._contenu_lay)
+
+        if not categories:
+            lbl = QLabel("Aucune vente de produit sur cette période.")
+            lbl.setObjectName("loginUtilisateur")
+            lbl.setContentsMargins(0, 4, 0, 4)
+            self._carte_produits_cat._contenu_lay.addWidget(lbl)
+            return
+
+        entete = QHBoxLayout()
+        entete.setContentsMargins(0, 0, 0, 8)
+        for texte, largeur in [("Catégorie", 140), ("Qté", 60), ("CA (Ar)", 110)]:
+            lbl = QLabel(texte)
+            lbl.setObjectName("titreSectionSessions")
+            lbl.setFixedWidth(largeur)
+            entete.addWidget(lbl)
+        entete.addStretch()
+        entete_widget = QWidget()
+        entete_widget.setStyleSheet("background: transparent;")
+        entete_widget.setLayout(entete)
+        self._carte_produits_cat._contenu_lay.addWidget(entete_widget)
+
+        sep = QFrame()
+        sep.setFrameShape(QFrame.Shape.HLine)
+        sep.setObjectName("separateurSession")
+        self._carte_produits_cat._contenu_lay.addWidget(sep)
+
+        max_val = max((r["ca"] for r in categories), default=1) or 1
+
+        for i, r in enumerate(categories):
+            row = QWidget()
+            row.setStyleSheet("background: transparent;")
+            ligne = QHBoxLayout(row)
+            ligne.setContentsMargins(0, 6, 0, 6)
+            ligne.setSpacing(0)
+
+            lbl_cat = QLabel(r["categorie"].capitalize())
+            lbl_cat.setObjectName("nomUtilisateur")
+            lbl_cat.setFixedWidth(140)
+            ligne.addWidget(lbl_cat)
+
+            lbl_qte = QLabel(str(r["quantite"]))
+            lbl_qte.setObjectName("loginUtilisateur")
+            lbl_qte.setFixedWidth(60)
+            ligne.addWidget(lbl_qte)
+
+            lbl_ca = QLabel(_fmt_ar(int(r["ca"])) + " Ar")
+            lbl_ca.setObjectName("montantVente")
+            lbl_ca.setFixedWidth(110)
+            ligne.addWidget(lbl_ca)
+
+            barre = QProgressBar()
+            barre.setObjectName("barreTop")
+            barre.setRange(0, max_val)
+            barre.setValue(int(r["ca"]))
+            barre.setTextVisible(False)
+            barre.setFixedHeight(10)
+            barre.setStyleSheet(
+                f"QProgressBar {{ background-color: #2f3340; border: none; border-radius: 5px; }}"
+                f"QProgressBar::chunk {{ background-color: {_COULEURS_BARRE[i % len(_COULEURS_BARRE)]}; border-radius: 5px; }}"
+            )
+            ligne.addWidget(barre, stretch=1)
+
+            self._carte_produits_cat._contenu_lay.addWidget(row)
+
+            sep_r = QFrame()
+            sep_r.setFrameShape(QFrame.Shape.HLine)
+            sep_r.setObjectName("separateurSession")
+            self._carte_produits_cat._contenu_lay.addWidget(sep_r)
 
     # ── Export CSV ────────────────────────────────────────────────────
 
