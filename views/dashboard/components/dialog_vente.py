@@ -21,12 +21,23 @@ from views.dashboard.components.spin_duree import SpinDuree
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
 def _generer_username() -> str:
-    """Génère un identifiant utilisateur lisible : User suivi de 4 chiffres."""
-    return f"User{random.randint(1000, 9999)}"
+    return f"User{random.randint(1, 9999)}"
+
+
+def _generer_code_unique() -> str:
+    """Génère un code unique vérifié en base (900 000 combinaisons, 20 tentatives)."""
+    from repositories.ticket_repository import TicketRepository
+    repo = TicketRepository()
+    for _ in range(20):
+        candidate = _generer_username()
+        if repo.get_ticket_by_code(candidate) is None:
+            return candidate
+    import uuid
+    return f"User{uuid.uuid4().hex[:6].upper()}"
 
 
 def _generer_password() -> str:
-    return ''.join(random.choices(string.ascii_lowercase + string.digits, k=6))
+    return ''.join(random.choices(string.ascii_uppercase + string.digits, k=6))
 
 
 def _fmt_duree(minutes: int) -> str:
@@ -501,7 +512,7 @@ class DialogVente(QDialog):
             self._btn_confirmer.setText(f"  Confirmer — {formater_montant(prix)} Ar")
 
     def _effectuer_vente(self):
-        code     = _generer_username()
+        code     = _generer_code_unique()
         password = _generer_password()
         profil   = self._combo.currentData()
 

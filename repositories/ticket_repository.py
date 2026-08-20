@@ -123,6 +123,21 @@ class TicketRepository:
             self._conn.rollback()
             raise RuntimeError(f"Erreur clôture ticket : {e}")
 
+    def lister_expires_actifs(self) -> List[Ticket]:
+        """Tickets encore 'actif' en DB dont la date d'expiration est dépassée."""
+        query = """
+            SELECT * FROM tickets
+            WHERE statut = 'actif'
+              AND date_expiration IS NOT NULL
+              AND datetime(date_expiration) < datetime('now', 'localtime')
+        """
+        try:
+            cursor = self._conn.cursor()
+            cursor.execute(query)
+            return [Ticket.from_dict(dict(row)) for row in cursor.fetchall()]
+        except sqlite3.Error as e:
+            raise RuntimeError(f"Erreur lister_expires_actifs : {e}")
+
     def lister_expirant_bientot(self, minutes: int = 30) -> List[Ticket]:
         """Tickets actifs dont l'expiration est dans moins de `minutes` minutes."""
         query = """
