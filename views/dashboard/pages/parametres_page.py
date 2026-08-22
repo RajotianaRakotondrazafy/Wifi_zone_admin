@@ -40,6 +40,7 @@ class ParametresPage(QWidget):
         cl.addWidget(self._section_tarification())
         cl.addWidget(self._section_application())
         cl.addWidget(self._section_sauvegarde())
+        cl.addWidget(self._section_maintenance_mikrotik())
 
         # ── Bouton Sauvegarder ───────────────────────────────────────────
         btn = QPushButton("  Sauvegarder")
@@ -174,6 +175,107 @@ class ParametresPage(QWidget):
 
         lay.addLayout(ligne)
         return card
+
+    def _section_maintenance_mikrotik(self) -> QFrame:
+        card = QFrame()
+        card.setObjectName("sectionParametres")
+        lay = QVBoxLayout(card)
+        lay.setContentsMargins(20, 16, 20, 20)
+        lay.setSpacing(14)
+
+        lay.addWidget(self._entete("fa5s.broom", "MAINTENANCE MIKROTIK"))
+        lay.addWidget(self._separateur())
+
+        lbl_aide = QLabel(
+            "Supprime du routeur les comptes hotspot dont le ticket est expiré ou "
+            "inexistant en base de données (utilisateurs orphelins créés avant la "
+            "mise à jour automatique)."
+        )
+        lbl_aide.setObjectName("descriptionZone")
+        lbl_aide.setWordWrap(True)
+        lay.addWidget(lbl_aide)
+
+        ligne = QHBoxLayout()
+        ligne.setSpacing(12)
+
+        btn = QPushButton("  Purger les utilisateurs orphelins")
+        btn.setObjectName("boutonSauvegarder")
+        btn.setIcon(qta.icon("fa5s.trash-alt", color="#ffffff"))
+        btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        btn.setFixedHeight(40)
+        btn.clicked.connect(self._purger_orphelins)
+        ligne.addWidget(btn)
+
+        self._lbl_purge = QLabel("")
+        self._lbl_purge.setObjectName("descriptionZone")
+        ligne.addWidget(self._lbl_purge)
+        ligne.addStretch()
+        lay.addLayout(ligne)
+
+        return card
+
+    def _purger_orphelins(self):
+        """Supprime du MikroTik tous les comptes sans ticket valide en DB."""
+        from repositories.ticket_repository import TicketRepository
+        from repositories.router_repository import RouterRepository
+        from services.mikrotik_service import MikroTikService
+
+        try:
+            repo = TicketRepository()
+            codes_valides    = repo.lister_codes_valides()
+            codes_ekonnekta  = repo.lister_tous_les_codes()
+            routers = RouterRepository().lister_tous()
+        except Exception as exc:
+            QMessageBox.critical(self, "Erreur", f"Lecture base de données :\n{exc}")
+            return
+
+        if not routers:
+            QMessageBox.warning(self, "Aucun routeur", "Aucun routeur configuré.")
+            return
+
+        total_supprimes = 0
+        erreurs = []
+
+        for router in routers:
+            svc = MikroTikService()
+            if not svc.connecter_routeur(
+                router.adresse_ip,
+                router.username,
+                router.password_chiffre,
+                router.port_api or 8728,
+            ):
+                erreurs.append(f"Impossible de se connecter à {router.adresse_ip}")
+                continue
+
+            try:
+                tous_users = svc.lister_utilisateurs_hotspot()
+                # Uniquement les comptes créés par E-Konnekta ET dont le ticket
+                # est expiré/épuisé — jamais les comptes manuels (admin, etc.)
+                orphelins = [
+                    u for u in tous_users
+                    if u in codes_ekonnekta and u not in codes_valides
+                ]
+                for code in orphelins:
+                    try:
+                        svc.supprimer_utilisateur_hotspot(code)
+                        total_supprimes += 1
+                    except Exception as exc:
+                        erreurs.append(f"{code} ({router.adresse_ip}) : {exc}")
+            except Exception as exc:
+                erreurs.append(f"Listing {router.adresse_ip} : {exc}")
+            finally:
+                svc.deconnecter()
+
+        msg = f"{total_supprimes} utilisateur(s) orphelin(s) supprimé(s)."
+        if erreurs:
+            msg += f"\n\n{len(erreurs)} erreur(s) :\n" + "\n".join(erreurs[:5])
+            QMessageBox.warning(self, "Purge terminée", msg)
+        else:
+            QMessageBox.information(self, "Purge terminée", msg)
+
+        self._lbl_purge.setText(
+            f"Dernière purge : {total_supprimes} supprimé(s)"
+        )
 
     # ── Helpers UI ────────────────────────────────────────────────────────
 

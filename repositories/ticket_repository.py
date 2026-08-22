@@ -123,6 +123,30 @@ class TicketRepository:
             self._conn.rollback()
             raise RuntimeError(f"Erreur clôture ticket : {e}")
 
+    def lister_tous_les_codes(self) -> set[str]:
+        """Tous les codes jamais créés par E-Konnekta (toutes statuts confondus)."""
+        try:
+            cursor = self._conn.cursor()
+            cursor.execute("SELECT code FROM tickets")
+            return {row["code"] for row in cursor.fetchall()}
+        except sqlite3.Error as e:
+            raise RuntimeError(f"Erreur lister_tous_les_codes : {e}")
+
+    def lister_codes_valides(self) -> set[str]:
+        """Codes de tous les tickets encore valides (non épuisés, non expirés)."""
+        query = """
+            SELECT code FROM tickets
+            WHERE statut NOT IN ('epuise')
+              AND (date_expiration IS NULL
+                   OR datetime(date_expiration) >= datetime('now', 'localtime'))
+        """
+        try:
+            cursor = self._conn.cursor()
+            cursor.execute(query)
+            return {row["code"] for row in cursor.fetchall()}
+        except sqlite3.Error as e:
+            raise RuntimeError(f"Erreur lister_codes_valides : {e}")
+
     def lister_expires_actifs(self) -> List[Ticket]:
         """Tickets encore 'actif' en DB dont la date d'expiration est dépassée."""
         query = """

@@ -195,6 +195,15 @@ class MikroTikService:
         except Exception as exc:
             raise MikroTikErreur(f"Impossible de créer l'utilisateur '{code}': {exc}") from exc
 
+    def lister_utilisateurs_hotspot(self) -> list[str]:
+        """Retourne les noms de tous les comptes hotspot présents sur le routeur."""
+        api = self._api_ou_erreur()
+        try:
+            users = api.get_resource("/ip/hotspot/user").get()
+            return [u.get("name", "") for u in users if u.get("name")]
+        except Exception as exc:
+            raise MikroTikErreur(f"Impossible de lister les utilisateurs: {exc}") from exc
+
     def supprimer_utilisateur_hotspot(self, code: str) -> bool:
         """Supprime un compte hotspot par son login. Retourne True si trouvé et supprimé."""
         api = self._api_ou_erreur()
