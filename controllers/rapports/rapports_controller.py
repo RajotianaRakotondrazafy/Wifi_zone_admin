@@ -62,13 +62,19 @@ class RapportsController:
         top_profils   = self._sale_repo.top_profils_periode(date_debut, date_fin)
         produits      = self._produit_repo.agreger_par_periode(date_debut, date_fin)
         par_categorie = self._produit_repo.ventes_par_categorie_periode(date_debut, date_fin)
+
+        ca_accessoires = sum(r["ca"] for r in par_categorie if r["categorie"] == "accessoires")
+        ca_accessoires = int(ca_accessoires or 0)
         return {
-            "synthese":      synthese,
-            "par_jour":      par_jour,
-            "top_profils":   top_profils,
-            "produits":      produits,
-            "par_categorie": par_categorie,
-            "ca_total":      synthese["ca_total"] + produits["ca_total"],
+            "synthese":            synthese,
+            "par_jour":            par_jour,
+            "top_profils":         top_profils,
+            "produits":            produits,
+            "par_categorie":       par_categorie,
+            "ca_tickets":          int(synthese["ca_total"] or 0),
+            "ca_accessoires":      ca_accessoires,
+            "ca_autres_produits":  max(0, int(produits["ca_total"] or 0) - ca_accessoires),
+            "ca_total":            int(synthese["ca_total"] or 0) + int(produits["ca_total"] or 0),
         }
 
     def exporter_csv(self, chemin: str, date_debut: str, date_fin: str,

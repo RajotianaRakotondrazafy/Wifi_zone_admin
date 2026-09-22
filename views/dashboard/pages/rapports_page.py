@@ -82,13 +82,22 @@ class RapportsPage(QWidget):
         # ── Cards synthèse ───────────────────────────────────────────
         rangee = QHBoxLayout()
         rangee.setSpacing(16)
-        self._card_ca          = StatCard("fa5s.coins",       "CA de la période",  "—", "Ar", masquable=True)
-        self._card_ca_produits = StatCard("fa5s.box",         "CA Produits",       "—", "Ar", masquable=True)
-        self._card_ventes      = StatCard("fa5s.receipt",     "Ventes",            "—", "tickets")
-        self._card_moyenne     = StatCard("fa5s.chart-line",  "Ticket moyen",      "—", "Ar", masquable=True)
-        for c in (self._card_ca, self._card_ca_produits, self._card_ventes, self._card_moyenne):
+        self._card_ca             = StatCard("fa5s.coins",          "CA de la période",   "—", "Ar", masquable=True)
+        self._card_ca_tickets     = StatCard("fa5s.wifi",           "CA Tickets WiFi",    "—", "Ar", masquable=True)
+        self._card_ca_accessoires = StatCard("fa5s.shopping-basket","CA Accessoires",     "—", "Ar", masquable=True)
+        self._card_ca_autres      = StatCard("fa5s.box",            "CA Autres produits", "—", "Ar", masquable=True)
+        for c in (self._card_ca, self._card_ca_tickets, self._card_ca_accessoires, self._card_ca_autres):
             rangee.addWidget(c)
         layout.addLayout(rangee)
+
+        rangee2 = QHBoxLayout()
+        rangee2.setSpacing(16)
+        self._card_ventes  = StatCard("fa5s.receipt",    "Ventes",      "—", "tickets")
+        self._card_moyenne = StatCard("fa5s.chart-line", "Ticket moyen","—", "Ar", masquable=True)
+        for c in (self._card_ventes, self._card_moyenne):
+            rangee2.addWidget(c)
+        rangee2.addStretch()
+        layout.addLayout(rangee2)
 
         # ── Zone défilable ───────────────────────────────────────────
         scroll = QScrollArea()
@@ -144,12 +153,13 @@ class RapportsPage(QWidget):
         donnees = self._controller.rapport_complet(self._date_debut, self._date_fin)
 
         synthese    = donnees["synthese"]
-        produits    = donnees["produits"]
         self._par_jour = donnees["par_jour"]
 
         # Cards
         self._card_ca.mettre_a_jour(_fmt_ar(donnees["ca_total"]), "Ar")
-        self._card_ca_produits.mettre_a_jour(_fmt_ar(produits["ca_total"]), "Ar")
+        self._card_ca_tickets.mettre_a_jour(_fmt_ar(donnees["ca_tickets"]), "Ar")
+        self._card_ca_accessoires.mettre_a_jour(_fmt_ar(donnees["ca_accessoires"]), "Ar")
+        self._card_ca_autres.mettre_a_jour(_fmt_ar(donnees["ca_autres_produits"]), "Ar")
         self._card_ventes.mettre_a_jour(str(synthese["nb_ventes"]), "tickets")
         self._card_moyenne.mettre_a_jour(_fmt_ar(synthese["ticket_moyen"]), "Ar")
 
