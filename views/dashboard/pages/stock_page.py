@@ -12,6 +12,7 @@ from controllers.stock.stock_controller import StockController
 from models.user import User
 from utils.formatage import formater_montant
 from views.dashboard.components.stat_card import StatCard
+from views.dashboard.components.montant_masquable import MontantMasquable
 from views.dashboard.components.elide_label import LabelElide
 from views.dashboard.components.dialog_vente_produit import DialogVenteProduit
 from views.dashboard.components.dialog_produits import DialogGestionProduits
@@ -68,19 +69,21 @@ class LigneVenteProduit(QWidget):
         lay.addSpacing(16)
 
         # Quantité × prix
-        lbl_detail = QLabel(f"{vente['quantite']} × {formater_montant(vente['prix_unitaire'])} Ar")
-        lbl_detail.setObjectName("labelHeure")
-        lbl_detail.setFixedWidth(110)
-        lbl_detail.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
+        lbl_detail = MontantMasquable(
+            f"{vente['quantite']} × {formater_montant(vente['prix_unitaire'])} Ar",
+            object_name="labelHeure",
+        )
+        lbl_detail.setFixedWidth(118)
         lay.addWidget(lbl_detail)
 
         lay.addSpacing(16)
 
         # Montant
-        lbl_montant = QLabel(f"{formater_montant(vente['montant'])} Ar")
-        lbl_montant.setObjectName("montantVente")
-        lbl_montant.setFixedWidth(90)
-        lbl_montant.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
+        lbl_montant = MontantMasquable(
+            f"{formater_montant(vente['montant'])} Ar",
+            object_name="montantVente",
+        )
+        lbl_montant.setFixedWidth(98)
         lay.addWidget(lbl_montant)
 
         lay.addSpacing(16)
@@ -96,7 +99,7 @@ class LigneVenteProduit(QWidget):
         lay.addSpacing(8)
 
         if vente.get("annule"):
-            lbl_montant.setStyleSheet(
+            lbl_montant.label.setStyleSheet(
                 "color:#5c5f6e;font-size:15px;font-weight:bold;text-decoration:line-through;"
             )
             badge_a = QLabel("Annulé")
@@ -142,9 +145,10 @@ class LigneCategorieStock(QWidget):
 
         lay.addStretch()
 
-        lbl_ca = QLabel(f"{formater_montant(ligne['ca'])} Ar")
-        lbl_ca.setObjectName("montantCategorieStock")
-        lbl_ca.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
+        lbl_ca = MontantMasquable(
+            f"{formater_montant(ligne['ca'])} Ar",
+            object_name="montantCategorieStock",
+        )
         lay.addWidget(lbl_ca)
 
 
@@ -234,7 +238,7 @@ class StockPage(QWidget):
     def _rangee_cards(self) -> QHBoxLayout:
         r = QHBoxLayout()
         r.setSpacing(16)
-        self._stat_ca        = StatCard("fa5s.coins",           "CA produits du jour", "0 Ar", "aujourd'hui")
+        self._stat_ca        = StatCard("fa5s.coins",           "CA produits du jour", "0 Ar", "aujourd'hui", masquable=True)
         self._stat_nb_ventes = StatCard("fa5s.receipt",         "Ventes produits",     "0",    "aujourd'hui")
         self._stat_articles  = StatCard("fa5s.box-open",        "Articles vendus",     "0",    "aujourd'hui")
         for c in (self._stat_ca, self._stat_nb_ventes, self._stat_articles):

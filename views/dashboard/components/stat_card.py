@@ -2,9 +2,15 @@ import qtawesome as qta
 from PyQt6.QtCore import Qt
 from PyQt6.QtWidgets import QFrame, QVBoxLayout, QHBoxLayout, QLabel
 
+from views.dashboard.components.montant_masquable import MontantMasquable
+
 
 class StatCard(QFrame):
-    """Carte de statistique réutilisable pour le tableau de bord."""
+    """Carte de statistique réutilisable pour le tableau de bord.
+
+    Si `masquable=True`, la valeur est masquée (étoiles) par défaut avec un
+    bouton « œil » pour la révéler (utile pour les montants).
+    """
 
     def __init__(
         self,
@@ -13,6 +19,7 @@ class StatCard(QFrame):
         valeur: str,
         sous_texte: str = "",
         parent=None,
+        masquable: bool = False,
     ):
         super().__init__(parent)
         self.setObjectName("statCard")
@@ -40,10 +47,16 @@ class StatCard(QFrame):
         self._label_titre.setObjectName("titreStatCard")
         layout.addWidget(self._label_titre)
 
-        # --- Valeur ---
-        self._label_valeur = QLabel(valeur)
-        self._label_valeur.setObjectName("valeurStatCard")
-        layout.addWidget(self._label_valeur)
+        # --- Valeur (masquable éventuellement) ---
+        if masquable:
+            self._montant = MontantMasquable(valeur, object_name="valeurStatCard")
+            self._label_valeur = self._montant.label
+            layout.addWidget(self._montant)
+        else:
+            self._montant = None
+            self._label_valeur = QLabel(valeur)
+            self._label_valeur.setObjectName("valeurStatCard")
+            layout.addWidget(self._label_valeur)
 
         # --- Sous-texte ---
         self._label_sous_texte = QLabel(sous_texte)
@@ -53,7 +66,10 @@ class StatCard(QFrame):
 
     def mettre_a_jour(self, valeur: str, sous_texte: str = None):
         """Rafraîchit la valeur et le sous-texte sans recréer le widget."""
-        self._label_valeur.setText(valeur)
+        if self._montant is not None:
+            self._montant.definir_texte(valeur)
+        else:
+            self._label_valeur.setText(valeur)
         if sous_texte is not None:
             self._label_sous_texte.setText(sous_texte)
             self._label_sous_texte.setVisible(bool(sous_texte))

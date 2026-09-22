@@ -9,6 +9,7 @@ from PyQt6.QtWidgets import (
 
 from controllers.rapports.rapports_controller import RapportsController, PERIODES
 from views.dashboard.components.stat_card import StatCard
+from views.dashboard.components.montant_masquable import MontantMasquable
 
 
 _COULEURS_BARRE = ["#5b6ee8", "#6ee8c0", "#e8c45b", "#e85b6e", "#5b9ee8"]
@@ -81,10 +82,10 @@ class RapportsPage(QWidget):
         # ── Cards synthèse ───────────────────────────────────────────
         rangee = QHBoxLayout()
         rangee.setSpacing(16)
-        self._card_ca          = StatCard("fa5s.coins",       "CA de la période",  "—", "Ar")
-        self._card_ca_produits = StatCard("fa5s.box",         "CA Produits",       "—", "Ar")
+        self._card_ca          = StatCard("fa5s.coins",       "CA de la période",  "—", "Ar", masquable=True)
+        self._card_ca_produits = StatCard("fa5s.box",         "CA Produits",       "—", "Ar", masquable=True)
         self._card_ventes      = StatCard("fa5s.receipt",     "Ventes",            "—", "tickets")
-        self._card_moyenne     = StatCard("fa5s.chart-line",  "Ticket moyen",      "—", "Ar")
+        self._card_moyenne     = StatCard("fa5s.chart-line",  "Ticket moyen",      "—", "Ar", masquable=True)
         for c in (self._card_ca, self._card_ca_produits, self._card_ventes, self._card_moyenne):
             rangee.addWidget(c)
         layout.addLayout(rangee)
@@ -207,9 +208,11 @@ class RapportsPage(QWidget):
             lbl_nb.setFixedWidth(80)
             ligne.addWidget(lbl_nb)
 
-            lbl_ca = QLabel(_fmt_ar(int(r["ca"])) + " Ar")
-            lbl_ca.setObjectName("montantVente")
-            lbl_ca.setFixedWidth(110)
+            lbl_ca = MontantMasquable(
+                _fmt_ar(int(r["ca"])) + " Ar",
+                object_name="montantVente",
+            )
+            lbl_ca.setFixedWidth(124)
             ligne.addWidget(lbl_ca)
 
             barre = QProgressBar()
@@ -275,10 +278,11 @@ class RapportsPage(QWidget):
             lbl_nb.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
             ligne.addWidget(lbl_nb)
 
-            lbl_ca = QLabel(_fmt_ar(int(r["ca"])) + " Ar")
-            lbl_ca.setObjectName("montantVente")
-            lbl_ca.setFixedWidth(100)
-            lbl_ca.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
+            lbl_ca = MontantMasquable(
+                _fmt_ar(int(r["ca"])) + " Ar",
+                object_name="montantVente",
+            )
+            lbl_ca.setFixedWidth(114)
             ligne.addWidget(lbl_ca)
 
             self._carte_top_profils._contenu_lay.addWidget(row)
@@ -330,9 +334,11 @@ class RapportsPage(QWidget):
             lbl_qte.setFixedWidth(60)
             ligne.addWidget(lbl_qte)
 
-            lbl_ca = QLabel(_fmt_ar(int(r["ca"])) + " Ar")
-            lbl_ca.setObjectName("montantVente")
-            lbl_ca.setFixedWidth(110)
+            lbl_ca = MontantMasquable(
+                _fmt_ar(int(r["ca"])) + " Ar",
+                object_name="montantVente",
+            )
+            lbl_ca.setFixedWidth(124)
             ligne.addWidget(lbl_ca)
 
             barre = QProgressBar()

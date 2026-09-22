@@ -10,6 +10,7 @@ from PyQt6.QtWidgets import (
 
 from controllers.ventes.ventes_controller import VentesController
 from views.dashboard.components.stat_card import StatCard
+from views.dashboard.components.montant_masquable import MontantMasquable
 from views.dashboard.components.dialog_vente import DialogVente
 from views.dashboard.components.elide_label import LabelElide
 from utils.formatage import formater_montant
@@ -400,11 +401,12 @@ class LigneVente(QWidget):
 
         lay.addSpacing(16)
 
-        # Montant — colonne fixe, aligné à droite
-        lbl_montant = QLabel(f"{formater_montant(vente['montant'])} Ar")
-        lbl_montant.setObjectName("montantVente")
-        lbl_montant.setFixedWidth(80)
-        lbl_montant.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
+        # Montant — colonne fixe, étoiles centrées
+        lbl_montant = MontantMasquable(
+            f"{formater_montant(vente['montant'])} Ar",
+            object_name="montantVente",
+        )
+        lbl_montant.setFixedWidth(104)
         lay.addWidget(lbl_montant)
 
         lay.addSpacing(16)
@@ -415,7 +417,7 @@ class LigneVente(QWidget):
             badge_s.setObjectName("badgeExpire")
             badge_s.setFixedWidth(62)
             badge_s.setAlignment(Qt.AlignmentFlag.AlignCenter)
-            lbl_montant.setStyleSheet(
+            lbl_montant.label.setStyleSheet(
                 "color:#5c5f6e;font-size:15px;font-weight:bold;text-decoration:line-through;"
             )
         else:
@@ -562,7 +564,7 @@ class VentesPage(QWidget):
         r = QHBoxLayout()
         r.setSpacing(16)
         self._stat_nb     = StatCard("fa5s.ticket-alt",    "Tickets vendus",    "0",       "aujourd'hui")
-        self._stat_ca     = StatCard("fa5s.coins",          "Chiffre d'affaires","0 Ar",    "aujourd'hui")
+        self._stat_ca     = StatCard("fa5s.coins",          "Chiffre d'affaires","0 Ar",    "aujourd'hui", masquable=True)
         self._stat_actifs = StatCard("fa5s.wifi",           "Tickets actifs",    "0",       "en ce moment")
         for c in (self._stat_nb, self._stat_ca, self._stat_actifs):
             r.addWidget(c)

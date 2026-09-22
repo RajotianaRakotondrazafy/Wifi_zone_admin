@@ -97,8 +97,8 @@ class TableauDeBordPage(QWidget):
         r = QHBoxLayout()
         r.setSpacing(16)
         self._card_nb_ventes = StatCard("fa5s.receipt", "Ventes du jour",  "—", "tickets")
-        self._card_ca        = StatCard("fa5s.coins",   "CA du jour",      "—", "Ar")
-        self._card_ca_produits = StatCard("fa5s.shopping-basket", "CA produits du jour", "—", "Ar")
+        self._card_ca        = StatCard("fa5s.coins",   "CA du jour",      "—", "Ar", masquable=True)
+        self._card_ca_produits = StatCard("fa5s.shopping-basket", "CA produits du jour", "—", "Ar", masquable=True)
         self._card_nb_produits = StatCard("fa5s.box-open",   "Articles produits", "—", "articles")
         for c in (self._card_nb_ventes, self._card_ca, self._card_ca_produits, self._card_nb_produits):
             r.addWidget(c)
