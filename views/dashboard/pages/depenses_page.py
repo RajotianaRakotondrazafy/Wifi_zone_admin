@@ -12,7 +12,6 @@ from controllers.depenses.depenses_controller import DepensesController
 from models.user import User
 from utils.formatage import formater_montant
 from views.dashboard.components.stat_card import StatCard
-from views.dashboard.components.montant_masquable import MontantMasquable
 from views.dashboard.components.elide_label import LabelElide
 from views.dashboard.components.dialog_depense import DialogDepense
 
@@ -62,10 +61,8 @@ class LigneDepense(QWidget):
         lay.addSpacing(16)
 
         # Montant
-        lbl_montant = MontantMasquable(
-            f"{formater_montant(depense['montant'])} Ar",
-            object_name="montantVente",
-        )
+        lbl_montant = QLabel(f"{formater_montant(depense['montant'])} Ar")
+        lbl_montant.setObjectName("montantVente")
         lbl_montant.setFixedWidth(110)
         lay.addWidget(lbl_montant)
 
@@ -81,7 +78,7 @@ class LigneDepense(QWidget):
         lay.addSpacing(8)
 
         if depense.get("annule"):
-            lbl_montant.label.setStyleSheet(
+            lbl_montant.setStyleSheet(
                 "color:#5c5f6e;font-size:15px;font-weight:bold;text-decoration:line-through;"
             )
             badge_a = QLabel("Annulé")

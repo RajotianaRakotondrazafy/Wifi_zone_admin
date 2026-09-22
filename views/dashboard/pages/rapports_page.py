@@ -9,7 +9,6 @@ from PyQt6.QtWidgets import (
 
 from controllers.rapports.rapports_controller import RapportsController, PERIODES
 from views.dashboard.components.stat_card import StatCard
-from views.dashboard.components.montant_masquable import MontantMasquable
 
 
 _COULEURS_BARRE = ["#5b6ee8", "#6ee8c0", "#e8c45b", "#e85b6e", "#5b9ee8"]
@@ -230,10 +229,8 @@ class RapportsPage(QWidget):
             lbl_nb.setFixedWidth(80)
             ligne.addWidget(lbl_nb)
 
-            lbl_ca = MontantMasquable(
-                _fmt_ar(int(r["ca"])) + " Ar",
-                object_name="montantVente",
-            )
+            lbl_ca = QLabel(_fmt_ar(int(r["ca"])) + " Ar")
+            lbl_ca.setObjectName("montantVente")
             lbl_ca.setFixedWidth(124)
             ligne.addWidget(lbl_ca)
 
@@ -300,10 +297,8 @@ class RapportsPage(QWidget):
             lbl_nb.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
             ligne.addWidget(lbl_nb)
 
-            lbl_ca = MontantMasquable(
-                _fmt_ar(int(r["ca"])) + " Ar",
-                object_name="montantVente",
-            )
+            lbl_ca = QLabel(_fmt_ar(int(r["ca"])) + " Ar")
+            lbl_ca.setObjectName("montantVente")
             lbl_ca.setFixedWidth(114)
             ligne.addWidget(lbl_ca)
 
@@ -356,10 +351,8 @@ class RapportsPage(QWidget):
             lbl_qte.setFixedWidth(60)
             ligne.addWidget(lbl_qte)
 
-            lbl_ca = MontantMasquable(
-                _fmt_ar(int(r["ca"])) + " Ar",
-                object_name="montantVente",
-            )
+            lbl_ca = QLabel(_fmt_ar(int(r["ca"])) + " Ar")
+            lbl_ca.setObjectName("montantVente")
             lbl_ca.setFixedWidth(124)
             ligne.addWidget(lbl_ca)
 

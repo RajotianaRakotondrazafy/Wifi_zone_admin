@@ -12,7 +12,6 @@ from controllers.stock.stock_controller import StockController
 from models.user import User
 from utils.formatage import formater_montant
 from views.dashboard.components.stat_card import StatCard
-from views.dashboard.components.montant_masquable import MontantMasquable
 from views.dashboard.components.elide_label import LabelElide
 from views.dashboard.components.dialog_vente_produit import DialogVenteProduit
 from views.dashboard.components.dialog_produits import DialogGestionProduits
@@ -69,20 +68,18 @@ class LigneVenteProduit(QWidget):
         lay.addSpacing(16)
 
         # Quantité × prix
-        lbl_detail = MontantMasquable(
-            f"{vente['quantite']} × {formater_montant(vente['prix_unitaire'])} Ar",
-            object_name="labelHeure",
+        lbl_detail = QLabel(
+            f"{vente['quantite']} × {formater_montant(vente['prix_unitaire'])} Ar"
         )
+        lbl_detail.setObjectName("labelHeure")
         lbl_detail.setFixedWidth(118)
         lay.addWidget(lbl_detail)
 
         lay.addSpacing(16)
 
         # Montant
-        lbl_montant = MontantMasquable(
-            f"{formater_montant(vente['montant'])} Ar",
-            object_name="montantVente",
-        )
+        lbl_montant = QLabel(f"{formater_montant(vente['montant'])} Ar")
+        lbl_montant.setObjectName("montantVente")
         lbl_montant.setFixedWidth(98)
         lay.addWidget(lbl_montant)
 
@@ -99,7 +96,7 @@ class LigneVenteProduit(QWidget):
         lay.addSpacing(8)
 
         if vente.get("annule"):
-            lbl_montant.label.setStyleSheet(
+            lbl_montant.setStyleSheet(
                 "color:#5c5f6e;font-size:15px;font-weight:bold;text-decoration:line-through;"
             )
             badge_a = QLabel("Annulé")
@@ -145,10 +142,8 @@ class LigneCategorieStock(QWidget):
 
         lay.addStretch()
 
-        lbl_ca = MontantMasquable(
-            f"{formater_montant(ligne['ca'])} Ar",
-            object_name="montantCategorieStock",
-        )
+        lbl_ca = QLabel(f"{formater_montant(ligne['ca'])} Ar")
+        lbl_ca.setObjectName("montantCategorieStock")
         lay.addWidget(lbl_ca)
 
 

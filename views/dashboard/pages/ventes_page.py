@@ -10,7 +10,6 @@ from PyQt6.QtWidgets import (
 
 from controllers.ventes.ventes_controller import VentesController
 from views.dashboard.components.stat_card import StatCard
-from views.dashboard.components.montant_masquable import MontantMasquable
 from views.dashboard.components.dialog_vente import DialogVente
 from views.dashboard.components.elide_label import LabelElide
 from utils.formatage import formater_montant
@@ -401,11 +400,9 @@ class LigneVente(QWidget):
 
         lay.addSpacing(16)
 
-        # Montant — colonne fixe, étoiles centrées
-        lbl_montant = MontantMasquable(
-            f"{formater_montant(vente['montant'])} Ar",
-            object_name="montantVente",
-        )
+        # Montant — colonne fixe
+        lbl_montant = QLabel(f"{formater_montant(vente['montant'])} Ar")
+        lbl_montant.setObjectName("montantVente")
         lbl_montant.setFixedWidth(104)
         lay.addWidget(lbl_montant)
 
@@ -417,7 +414,7 @@ class LigneVente(QWidget):
             badge_s.setObjectName("badgeExpire")
             badge_s.setFixedWidth(62)
             badge_s.setAlignment(Qt.AlignmentFlag.AlignCenter)
-            lbl_montant.label.setStyleSheet(
+            lbl_montant.setStyleSheet(
                 "color:#5c5f6e;font-size:15px;font-weight:bold;text-decoration:line-through;"
             )
         else:
