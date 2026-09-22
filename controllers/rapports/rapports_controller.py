@@ -4,6 +4,7 @@ from datetime import date, timedelta
 
 from repositories.sale_repository import SaleRepository
 from repositories.produit_repository import ProduitRepository
+from repositories.depense_repository import DepenseRepository
 
 
 def _lundi_semaine(d: date) -> date:
@@ -34,6 +35,7 @@ class RapportsController:
     def __init__(self):
         self._sale_repo = SaleRepository()
         self._produit_repo = ProduitRepository()
+        self._depense_repo = DepenseRepository()
 
     def plage_pour_periode(self, periode: str) -> tuple[str, str]:
         """Retourne (date_debut, date_fin) en ISO pour la période choisie."""
@@ -65,16 +67,22 @@ class RapportsController:
 
         ca_accessoires = sum(r["ca"] for r in par_categorie if r["categorie"] == "accessoires")
         ca_accessoires = int(ca_accessoires or 0)
+        ca_tickets     = int(synthese["ca_total"] or 0)
+        ca_produits    = int(produits["ca_total"] or 0)
+        ca_total       = ca_tickets + ca_produits
+        depenses_total = self._depense_repo.agreger_par_periode(date_debut, date_fin)
         return {
             "synthese":            synthese,
             "par_jour":            par_jour,
             "top_profils":         top_profils,
             "produits":            produits,
             "par_categorie":       par_categorie,
-            "ca_tickets":          int(synthese["ca_total"] or 0),
+            "ca_tickets":          ca_tickets,
             "ca_accessoires":      ca_accessoires,
-            "ca_autres_produits":  max(0, int(produits["ca_total"] or 0) - ca_accessoires),
-            "ca_total":            int(synthese["ca_total"] or 0) + int(produits["ca_total"] or 0),
+            "ca_autres_produits":  max(0, ca_produits - ca_accessoires),
+            "ca_total":            ca_total,
+            "depenses_total":      depenses_total,
+            "benefice_net":        max(0, ca_total - depenses_total),
         }
 
     def exporter_csv(self, chemin: str, date_debut: str, date_fin: str,

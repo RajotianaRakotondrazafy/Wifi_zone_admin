@@ -1,6 +1,6 @@
 import qtawesome as qta
 from datetime import datetime
-from PyQt6.QtCore import Qt
+from PyQt6.QtCore import Qt, QTimer
 from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel, QFrame,
     QComboBox, QPushButton, QScrollArea, QProgressBar,
@@ -43,6 +43,15 @@ class RapportsPage(QWidget):
         self._date_debut = ""
         self._date_fin   = ""
         self._construire_interface()
+        self._charger()
+
+        self._timer_rafraichir = QTimer(self)
+        self._timer_rafraichir.setInterval(60_000)
+        self._timer_rafraichir.timeout.connect(self._charger)
+        self._timer_rafraichir.start()
+
+    def showEvent(self, event):
+        super().showEvent(event)
         self._charger()
 
     # ── Construction ──────────────────────────────────────────────────
@@ -92,11 +101,12 @@ class RapportsPage(QWidget):
 
         rangee2 = QHBoxLayout()
         rangee2.setSpacing(16)
-        self._card_ventes  = StatCard("fa5s.receipt",    "Ventes",      "—", "tickets")
-        self._card_moyenne = StatCard("fa5s.chart-line", "Ticket moyen","—", "Ar", masquable=True)
-        for c in (self._card_ventes, self._card_moyenne):
+        self._card_ventes    = StatCard("fa5s.receipt",    "Ventes",         "—", "tickets")
+        self._card_moyenne   = StatCard("fa5s.chart-line", "Ticket moyen",   "—", "Ar", masquable=True)
+        self._card_depenses  = StatCard("fa5s.money-bill-wave-alt", "Total dépenses", "—", "Ar", masquable=True)
+        self._card_benefice  = StatCard("fa5s.hand-holding-usd",    "Bénéfice net",   "—", "Ar", masquable=True)
+        for c in (self._card_ventes, self._card_moyenne, self._card_depenses, self._card_benefice):
             rangee2.addWidget(c)
-        rangee2.addStretch()
         layout.addLayout(rangee2)
 
         # ── Zone défilable ───────────────────────────────────────────
@@ -162,6 +172,8 @@ class RapportsPage(QWidget):
         self._card_ca_autres.mettre_a_jour(_fmt_ar(donnees["ca_autres_produits"]), "Ar")
         self._card_ventes.mettre_a_jour(str(synthese["nb_ventes"]), "tickets")
         self._card_moyenne.mettre_a_jour(_fmt_ar(synthese["ticket_moyen"]), "Ar")
+        self._card_depenses.mettre_a_jour(_fmt_ar(donnees["depenses_total"]), "Ar")
+        self._card_benefice.mettre_a_jour(_fmt_ar(donnees["benefice_net"]), "Ar")
 
         self._construire_evolution(self._par_jour)
         self._construire_top_profils(donnees["top_profils"])

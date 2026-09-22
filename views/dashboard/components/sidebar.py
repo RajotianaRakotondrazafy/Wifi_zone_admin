@@ -7,6 +7,7 @@ ITEMS_MENU = [
     ("fa5s.tachometer-alt", "Tableau de bord"),
     ("fa5s.cash-register",  "Ventes"),
     ("fa5s.boxes",          "Stock"),
+    ("fa5s.money-bill-wave-alt", "Dépenses"),
     ("fa5s.users",          "Utilisateurs"),
     ("fa5s.wifi",           "Zones WiFi"),
     ("fa5s.chart-bar",      "Statistiques"),
