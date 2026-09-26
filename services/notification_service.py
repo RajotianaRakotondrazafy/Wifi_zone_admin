@@ -40,7 +40,7 @@ class NotificationService:
         self._tray.hide()
 
     def _nettoyer_expires(self):
-        """Supprime les tickets expirés de tous les routeurs et les marque 'epuise' en DB."""
+        """Supprime les tickets dont la validité est écoulée des routeurs et les marque 'expire' en DB."""
         try:
             from repositories.ticket_repository import TicketRepository
             from repositories.router_repository import RouterRepository
@@ -71,7 +71,7 @@ class NotificationService:
                             )
                         finally:
                             svc.deconnecter()
-                repo.marquer_cloture(ticket.id)
+                repo.marquer_expire(ticket.id)
                 logger.info("Ticket expiré nettoyé du routeur : %s", ticket.code)
         except Exception as exc:
             logger.warning("NotificationService._nettoyer_expires : %s", exc)

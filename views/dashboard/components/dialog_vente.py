@@ -592,7 +592,7 @@ class DialogVente(QDialog):
             duree_min = self._spin_duree.valeur_minutes
             prix      = round((duree_min / 60) * TARIFICATION_PRIX_PAR_HEURE)
             v         = VITESSES[self._vitesse_idx]
-            validite = max(24, duree_min // 60)
+            validite = max(1, (duree_min + 59) // 60)  # durée en heures (min 1 h)
             ticket = {
                 "code":              code,
                 "password":          password,
