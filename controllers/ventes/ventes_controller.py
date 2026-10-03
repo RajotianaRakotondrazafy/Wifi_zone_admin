@@ -89,13 +89,7 @@ class VentesController:
                 "libre":                 not est_cloturee,
             }
 
-        expiration_dt = v.get("date_expiration")
-        if isinstance(expiration_dt, str):
-            expiration_dt = datetime.fromisoformat(expiration_dt)
-        if demarre and expiration_dt is None:
-            # Sécurité : date_expiration absente → première connexion + validité
-            validite_h = v.get("validite") or 24
-            expiration_dt = premiere + timedelta(hours=validite_h)
+        expiration_dt = premiere + timedelta(minutes=duree_min) if demarre else None
         return {
             "vente_id":              v.get("vente_id"),
             "annule":                bool(v.get("annule", 0)),
@@ -384,10 +378,8 @@ class VentesController:
                     ticket.code,
                     ticket.password,
                     profil.nom,
-                    # Budget limit-uptime = validité du ticket (1ʳᵉ connexion + validité).
-                    # 0 = pas de limite : session libre (duree_session_max = 0) ou forfait partagé.
-                    duree_min=0 if est_forfait or ticket.duree_session_max == 0
-                              else ticket.validite * 60,
+                    # Pour les forfaits partagés, pas de limit-uptime (partage multi-appareils)
+                    duree_min=0 if est_forfait else ticket.duree_session_max,
                 )
                 return {"ok": True, "message": f"Ticket {ticket.code} enregistré sur {routeur.nom}."}
             except MikroTikErreur as exc:

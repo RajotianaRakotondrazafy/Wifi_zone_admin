@@ -52,9 +52,7 @@ class SaleRepository:
                 t.statut,
                 COALESCE(t.nom_affichage, hp.nom) AS profil_nom,
                 t.duree_session_max AS duree_session_max,
-                t.validite AS validite,
-                t.date_premiere_connexion AS date_premiere_connexion,
-                t.date_expiration AS date_expiration
+                t.date_premiere_connexion AS date_premiere_connexion
             FROM sales s
             JOIN tickets t          ON t.id = s.ticket_id
             JOIN hotspot_profiles hp ON hp.id = t.profile_id
@@ -73,7 +71,7 @@ class SaleRepository:
 
         Un ticket est actif si :
         - session libre (duree_session_max = 0) non clôturée ;
-        - session démarrée dont la validité n'est pas écoulée (première connexion + validité) ;
+        - session démarrée dont la durée n'est pas écoulée ;
         - session jamais démarrée mais encore dans sa validité (date_vente + validité).
         """
         query = """
@@ -87,9 +85,7 @@ class SaleRepository:
                 t.statut,
                 COALESCE(t.nom_affichage, hp.nom) AS profil_nom,
                 t.duree_session_max AS duree_session_max,
-                t.validite AS validite,
-                t.date_premiere_connexion AS date_premiere_connexion,
-                t.date_expiration AS date_expiration
+                t.date_premiere_connexion AS date_premiere_connexion
             FROM sales s
             JOIN tickets t          ON t.id = s.ticket_id
             JOIN hotspot_profiles hp ON hp.id = t.profile_id
@@ -99,8 +95,8 @@ class SaleRepository:
                     (t.duree_session_max = 0 AND t.statut NOT IN ('epuise', 'expire'))
                     OR (t.duree_session_max != 0
                         AND t.date_premiere_connexion IS NOT NULL
-                        AND t.date_expiration IS NOT NULL
-                        AND datetime(t.date_expiration)
+                        AND datetime(t.date_premiere_connexion,
+                                     '+' || t.duree_session_max || ' minutes')
                             > datetime('now', 'localtime'))
                     OR (t.duree_session_max != 0
                         AND t.date_premiere_connexion IS NULL
@@ -160,13 +156,10 @@ class SaleRepository:
                         WHEN t.duree_session_max = 0
                              AND t.statut NOT IN ('epuise','expire') THEN 1
                         WHEN t.duree_session_max != 0
-                             AND t.date_expiration IS NOT NULL
-                             AND datetime(t.date_expiration)
-                                  > datetime('now', 'localtime')     THEN 1
+                             AND t.date_premiere_connexion IS NULL   THEN 1
                         WHEN t.duree_session_max != 0
-                             AND t.date_premiere_connexion IS NULL
-                             AND datetime(s.date_vente,
-                                          '+' || t.validite || ' hours')
+                             AND datetime(t.date_premiere_connexion,
+                                         '+' || t.duree_session_max || ' minutes')
                                   > datetime('now', 'localtime')     THEN 1
                         ELSE 0
                     END

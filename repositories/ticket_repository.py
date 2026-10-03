@@ -123,19 +123,6 @@ class TicketRepository:
             self._conn.rollback()
             raise RuntimeError(f"Erreur clôture ticket : {e}")
 
-    def marquer_expire(self, ticket_id: int):
-        """Passe le statut du ticket à 'expire' (validité écoulée)."""
-        try:
-            cursor = self._conn.cursor()
-            cursor.execute(
-                "UPDATE tickets SET statut = 'expire' WHERE id = ?",
-                (ticket_id,),
-            )
-            self._conn.commit()
-        except sqlite3.Error as e:
-            self._conn.rollback()
-            raise RuntimeError(f"Erreur expiration ticket : {e}")
-
     def lister_tous_les_codes(self) -> set[str]:
         """Tous les codes jamais créés par E-Konnekta (toutes statuts confondus)."""
         try:
@@ -176,15 +163,17 @@ class TicketRepository:
             raise RuntimeError(f"Erreur lister_expires_actifs : {e}")
 
     def lister_expirant_bientot(self, minutes: int = 30) -> List[Ticket]:
-        """Tickets actifs dont l'expiration (première connexion + validité) est dans moins de `minutes` minutes."""
+        """Tickets actifs dont l'expiration est dans moins de `minutes` minutes."""
         query = """
             SELECT * FROM tickets
             WHERE statut = 'actif'
-              AND date_expiration IS NOT NULL
-              AND datetime(date_expiration) > datetime('now', 'localtime')
-              AND datetime(date_expiration)
+              AND date_premiere_connexion IS NOT NULL
+              AND duree_session_max > 0
+              AND datetime(date_premiere_connexion, '+' || duree_session_max || ' minutes')
+                  > datetime('now', 'localtime')
+              AND datetime(date_premiere_connexion, '+' || duree_session_max || ' minutes')
                   < datetime('now', 'localtime', '+' || ? || ' minutes')
-            ORDER BY datetime(date_expiration) ASC
+            ORDER BY datetime(date_premiere_connexion, '+' || duree_session_max || ' minutes') ASC
         """
         try:
             cursor = self._conn.cursor()
