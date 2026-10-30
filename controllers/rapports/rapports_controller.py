@@ -11,6 +11,23 @@ def _lundi_semaine(d: date) -> date:
     return d - timedelta(days=d.weekday())
 
 
+_JOUR_DEBUT_MOIS = 7  # Le mois commence le 7
+
+
+def _debut_periode_mois(d: date) -> date:
+    """7 du mois courant si on est >= 7, sinon 7 du mois précédent."""
+    if d.day >= _JOUR_DEBUT_MOIS:
+        return d.replace(day=_JOUR_DEBUT_MOIS)
+    return (d.replace(day=1) - timedelta(days=1)).replace(day=_JOUR_DEBUT_MOIS)
+
+
+def _debut_periode_mois_prec(d: date) -> date:
+    """7 du mois qui précède la période courante."""
+    debut_courant = _debut_periode_mois(d)
+    # On recule d'un mois depuis le début de la période courante
+    return (debut_courant.replace(day=1) - timedelta(days=1)).replace(day=_JOUR_DEBUT_MOIS)
+
+
 def _premier_du_mois(d: date) -> date:
     return d.replace(day=1)
 
@@ -41,12 +58,11 @@ class RapportsController:
         """Retourne (date_debut, date_fin) en ISO pour la période choisie."""
         aujourd_hui = date.today()
         if periode == "Ce mois":
-            debut = _premier_du_mois(aujourd_hui)
+            debut = _debut_periode_mois(aujourd_hui)
             fin   = aujourd_hui
         elif periode == "Mois précédent":
-            dernier_mois = aujourd_hui.replace(day=1) - timedelta(days=1)
-            debut = _premier_du_mois(dernier_mois)
-            fin   = _dernier_du_mois(dernier_mois)
+            debut = _debut_periode_mois_prec(aujourd_hui)
+            fin   = _debut_periode_mois(aujourd_hui) - timedelta(days=1)
         elif periode == "Cette semaine":
             debut = _lundi_semaine(aujourd_hui)
             fin   = aujourd_hui
