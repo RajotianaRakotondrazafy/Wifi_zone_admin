@@ -1,11 +1,24 @@
 import qtawesome as qta
-from PyQt6.QtCore import Qt
+from PyQt6.QtCore import QThread, Qt, pyqtSignal
 from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton,
     QFrame, QLineEdit, QScrollArea, QMessageBox, QFileDialog,
 )
 
 from controllers.parametres.parametres_controller import ParametresController
+from scripts.restaurer_tickets_actifs import restaurer
+
+
+class RestaurationTicketsActifsThread(QThread):
+    """Restaure les comptes hotspot manquants hors du thread de l'interface."""
+
+    terminee = pyqtSignal(object)
+
+    def run(self):
+        try:
+            self.terminee.emit({"bilan": restaurer(appliquer=True)})
+        except Exception as exc:
+            self.terminee.emit({"erreur": str(exc)})
 
 
 class ParametresPage(QWidget):
@@ -13,6 +26,7 @@ class ParametresPage(QWidget):
         super().__init__(parent)
         self._controller = controller
         self._champs: dict[str, QLineEdit] = {}
+        self._restauration_thread: RestaurationTicketsActifsThread | None = None
         self._construire_interface()
         self._charger_valeurs()
 
@@ -195,16 +209,32 @@ class ParametresPage(QWidget):
         lbl_aide.setWordWrap(True)
         lay.addWidget(lbl_aide)
 
+        lbl_restauration = QLabel(
+            "Restaure les comptes des tickets actifs non expirés absents du routeur "
+            "après un reset. Le login et le mot de passe seront le code du ticket."
+        )
+        lbl_restauration.setObjectName("descriptionZone")
+        lbl_restauration.setWordWrap(True)
+        lay.addWidget(lbl_restauration)
+
         ligne = QHBoxLayout()
         ligne.setSpacing(12)
 
-        btn = QPushButton("  Purger les utilisateurs orphelins")
-        btn.setObjectName("boutonSauvegarder")
-        btn.setIcon(qta.icon("fa5s.trash-alt", color="#ffffff"))
-        btn.setCursor(Qt.CursorShape.PointingHandCursor)
-        btn.setFixedHeight(40)
-        btn.clicked.connect(self._purger_orphelins)
-        ligne.addWidget(btn)
+        self._btn_purger = QPushButton("  Purger les utilisateurs orphelins")
+        self._btn_purger.setObjectName("boutonSauvegarder")
+        self._btn_purger.setIcon(qta.icon("fa5s.trash-alt", color="#ffffff"))
+        self._btn_purger.setCursor(Qt.CursorShape.PointingHandCursor)
+        self._btn_purger.setFixedHeight(40)
+        self._btn_purger.clicked.connect(self._purger_orphelins)
+        ligne.addWidget(self._btn_purger)
+
+        self._btn_restaurer = QPushButton("  Restaurer les tickets actifs")
+        self._btn_restaurer.setObjectName("boutonSauvegarder")
+        self._btn_restaurer.setIcon(qta.icon("fa5s.redo", color="#ffffff"))
+        self._btn_restaurer.setCursor(Qt.CursorShape.PointingHandCursor)
+        self._btn_restaurer.setFixedHeight(40)
+        self._btn_restaurer.clicked.connect(self._demander_restauration_tickets)
+        ligne.addWidget(self._btn_restaurer)
 
         self._lbl_purge = QLabel("")
         self._lbl_purge.setObjectName("descriptionZone")
@@ -278,6 +308,65 @@ class ParametresPage(QWidget):
         )
 
     # ── Helpers UI ────────────────────────────────────────────────────────
+
+    def _demander_restauration_tickets(self):
+        """Demande confirmation puis restaure les comptes effaces du routeur."""
+        if self._restauration_thread is not None and self._restauration_thread.isRunning():
+            return
+
+        reponse = QMessageBox.question(
+            self,
+            "Restaurer les tickets actifs",
+            "Les comptes hotspot des tickets actifs non expirés qui sont absents du "
+            "routeur vont être recréés.\n\n"
+            "Le code du ticket sera utilisé comme identifiant et comme mot de passe. "
+            "Les comptes déjà présents ne seront pas modifiés, et la date d'expiration "
+            "des tickets est conservée.\n\n"
+            "Lancer la restauration ?",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+            QMessageBox.StandardButton.No,
+        )
+        if reponse != QMessageBox.StandardButton.Yes:
+            return
+
+        self._btn_purger.setEnabled(False)
+        self._btn_restaurer.setEnabled(False)
+        self._lbl_purge.setText("Restauration des tickets actifs en cours...")
+
+        self._restauration_thread = RestaurationTicketsActifsThread(self)
+        self._restauration_thread.terminee.connect(self._fin_restauration_tickets)
+        self._restauration_thread.finished.connect(self._restauration_thread.deleteLater)
+        self._restauration_thread.start()
+
+    def _fin_restauration_tickets(self, resultat: object):
+        self._btn_purger.setEnabled(True)
+        self._btn_restaurer.setEnabled(True)
+        self._restauration_thread = None
+
+        if not isinstance(resultat, dict) or "erreur" in resultat:
+            erreur = (
+                resultat.get("erreur", "Erreur inconnue")
+                if isinstance(resultat, dict)
+                else "Erreur inconnue"
+            )
+            self._lbl_purge.setText("Restauration interrompue.")
+            QMessageBox.critical(self, "Restauration impossible", str(erreur))
+            return
+
+        bilan = resultat["bilan"]
+        self._lbl_purge.setText(f"Dernière restauration : {bilan.crees} compte(s) créé(s)")
+
+        message = (
+            f"{bilan.crees} compte(s) restauré(s).\n"
+            f"{bilan.deja_presents} compte(s) déjà présent(s).\n"
+            f"{bilan.actifs_non_expires} ticket(s) actif(s) non expiré(s) traité(s)."
+        )
+        details = bilan.ignores + bilan.erreurs
+        if details:
+            message += "\n\nDétails :\n" + "\n".join(details[:5])
+            QMessageBox.warning(self, "Restauration terminée", message)
+        else:
+            QMessageBox.information(self, "Restauration terminée", message)
 
     def _entete(self, icone_id: str, titre: str) -> QWidget:
         w = QWidget()
